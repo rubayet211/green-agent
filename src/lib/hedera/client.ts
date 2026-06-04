@@ -16,7 +16,7 @@ export function getHederaClient() {
   }
 }
 
-export async function submitToTopic(message: any) {
+export async function submitToTopic(message: Record<string, unknown>) {
   const client = getHederaClient();
   if (!client || !topicId) {
     return null; // Fall back to simulated response
@@ -30,7 +30,7 @@ export async function submitToTopic(message: any) {
 
     const txResponse = await transaction.execute(client);
     // Get receipt to guarantee consensus timestamp is available
-    const receipt = await txResponse.getReceipt(client);
+    await txResponse.getReceipt(client);
 
     return {
       topicId,

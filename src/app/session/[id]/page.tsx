@@ -7,8 +7,7 @@ import ScoreCard from "@/components/score-card";
 import AgentInsights from "@/components/agent-insights";
 import RecommendationCard from "@/components/recommendation-card";
 import HederaConfirmation from "@/components/hedera-confirmation";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, ShieldCheck, BrainCircuit, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Clock, BrainCircuit, ShieldAlert } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -60,9 +59,10 @@ export default function SessionDetailsPage({ params }: PageProps) {
       }
       const data: GreenAgentSession = await res.json();
       setSession(data);
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      setError("Failed to record green action logs to Hedera HCS.");
+      const errMsg = e instanceof Error ? e.message : "Failed to record green action logs to Hedera HCS.";
+      setError(errMsg);
     } finally {
       setIsLogging(false);
     }

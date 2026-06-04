@@ -12,8 +12,9 @@ export async function GET(req: Request) {
 
     const list = await sessionStore.getHistory(anonymousUserId);
     return NextResponse.json(list);
-  } catch (e: any) {
+  } catch (e) {
     console.error("Failed to query history:", e);
-    return NextResponse.json({ error: e.message || "History query failed" }, { status: 500 });
+    const errMsg = e instanceof Error ? e.message : "History query failed";
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

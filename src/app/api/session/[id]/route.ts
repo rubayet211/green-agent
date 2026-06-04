@@ -11,8 +11,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     return NextResponse.json(session);
-  } catch (e: any) {
+  } catch (e) {
     console.error("Failed to retrieve session details:", e);
-    return NextResponse.json({ error: e.message || "Session query failed" }, { status: 500 });
+    const errMsg = e instanceof Error ? e.message : "Session query failed";
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

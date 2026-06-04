@@ -32,35 +32,41 @@ export async function POST(req: Request) {
       network: "hedera-testnet"
     };
 
-    let result = await submitToTopic(logPayload);
+    let hederaStatus: "success" | "simulated" = "success";
+    let hederaTopicId = "";
+    let hederaTxId = "";
+    let hederaConsensusTimestamp = "";
 
-    if (!result) {
-      // Run simulated HCS logging when no Hedera accounts are set up
-      const mockTxId = `0.0.${Math.floor(Math.random() * 100000)}@${Date.now().toString().slice(0, 10)}.${Math.floor(Math.random() * 10000)}`;
-      const mockTopicId = process.env.HEDERA_TOPIC_ID || "0.0.9999-mock";
-      result = {
-        topicId: mockTopicId,
-        transactionId: mockTxId,
-        consensusTimestamp: new Date().toISOString(),
-        status: "simulated"
-      };
+    const result = await submitToTopic(logPayload);
+
+    if (result) {
+      hederaStatus = "success";
+      hederaTopicId = result.topicId;
+      hederaTxId = result.transactionId;
+      hederaConsensusTimestamp = result.consensusTimestamp;
+    } else {
+      hederaStatus = "simulated";
+      hederaTopicId = process.env.HEDERA_TOPIC_ID || "0.0.9999-mock";
+      hederaTxId = `0.0.${Math.floor(Math.random() * 100000)}@${Date.now().toString().slice(0, 10)}.${Math.floor(Math.random() * 10000)}`;
+      hederaConsensusTimestamp = new Date().toISOString();
     }
 
     session.selectedAction = recommendation;
     session.hedera = {
-      topicId: result.topicId,
-      transactionId: result.transactionId,
-      consensusTimestamp: result.consensusTimestamp,
-      status: result.status as "success" | "simulated",
-      message: `Your green action has been logged on Hedera Testnet${result.status === "simulated" ? " (Simulated Mode)" : ""}.`
+      topicId: hederaTopicId,
+      transactionId: hederaTxId,
+      consensusTimestamp: hederaConsensusTimestamp,
+      status: hederaStatus,
+      message: `Your green action has been logged on Hedera Testnet${hederaStatus === "simulated" ? " (Simulated Mode)" : ""}.`
     };
     session.updatedAt = new Date().toISOString();
 
     await sessionStore.saveSession(session);
 
     return NextResponse.json(session);
-  } catch (e: any) {
+  } catch (e) {
     console.error("Hedera log action route crash:", e);
-    return NextResponse.json({ error: e.message || "Failed to log on Hedera" }, { status: 500 });
+    const errMsg = e instanceof Error ? e.message : "Failed to log on Hedera";
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

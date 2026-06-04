@@ -114,7 +114,7 @@ export default function AnalysisForm({ onSubmit, isLoading }: AnalysisFormProps)
               <label className="text-sm font-medium text-slate-300">
                 Current Work Mode
               </label>
-              <Select value={mode} onValueChange={setMode}>
+              <Select value={mode} onValueChange={(val) => setMode(val || "Deep Work")}>
                 <SelectTrigger className="bg-slate-950/60 border-slate-800 text-slate-200">
                   <SelectValue placeholder="Select work mode" />
                 </SelectTrigger>

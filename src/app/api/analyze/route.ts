@@ -4,7 +4,7 @@ import { callAgent } from "@/lib/ai/gemini";
 import { CONTEXT_ANALYZER_PROMPT, CARBON_ESTIMATOR_PROMPT, OPTIMIZER_PROMPT, ACTION_RECOMMENDER_PROMPT } from "@/lib/ai/prompts";
 import { calculateFallbackScores } from "@/lib/utils/score";
 import { sessionStore } from "@/lib/firebase/sessions";
-import { GreenAgentSession, Recommendation } from "@/types/greenagent";
+import { GreenAgentSession, Recommendation, ContextAnalyzerOutput, CarbonEstimatorOutput, OptimizerOutput, ActionRecommenderOutput } from "@/types/greenagent";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
@@ -15,14 +15,14 @@ export async function POST(req: Request) {
     const parsedInput = AnalyzeRequestSchema.parse(body);
     const { tabs, hours, tasks, mode, anonymousUserId } = parsedInput;
 
-    let contextAnalyzer: any;
-    let carbonEstimator: any;
-    let optimizer: any;
-    let actionRecommender: any;
-    let focusScore: number;
-    let carbonScore: number;
+    let contextAnalyzer: ContextAnalyzerOutput;
+    let carbonEstimator: CarbonEstimatorOutput;
+    let optimizer: OptimizerOutput;
+    let actionRecommender: ActionRecommenderOutput;
+    let focusScore: number = 0;
+    let carbonScore: number = 0;
     let recommendations: Recommendation[] = [];
-    let bestAction: any;
+    let bestAction: ActionRecommenderOutput;
     let isMocked = false;
 
     const hasApiKey = !!process.env.GEMINI_API_KEY;
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         carbonScore = typeof optimizer.carbonScore === "number" ? optimizer.carbonScore : 70;
         
         // Add random IDs to recommendations
-        recommendations = (optimizer.recommendations || []).map((rec: any, idx: number) => ({
+        recommendations = (optimizer.recommendations || []).map((rec: Omit<Recommendation, "id">, idx: number) => ({
           ...rec,
           id: `rec-${idx}-${crypto.randomBytes(4).toString("hex")}`
         }));
@@ -164,8 +164,9 @@ export async function POST(req: Request) {
     await sessionStore.saveSession(session);
     return NextResponse.json(session);
 
-  } catch (e: any) {
+  } catch (e) {
     console.error("Analysis controller crashed:", e);
-    return NextResponse.json({ error: e.message || "Failed to analyze habits" }, { status: 500 });
+    const errMsg = e instanceof Error ? e.message : "Failed to analyze habits";
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

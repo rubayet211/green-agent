@@ -20,7 +20,10 @@ export default function Home() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setUserId(getAnonymousUserId());
+    const anonymousId = getAnonymousUserId();
+    setTimeout(() => {
+      setUserId(anonymousId);
+    }, 0);
   }, []);
 
   const handleFormSubmit = async (inputData: { tabs: number; hours: number; tasks: string; mode: string }) => {
@@ -43,9 +46,10 @@ export default function Home() {
       if (data.recommendations && data.recommendations.length > 0) {
         setSelectedActionId(data.recommendations[0].id);
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      setError("GreenAgent could not complete the analysis. Please check your API setup and try again.");
+      const errMsg = e instanceof Error ? e.message : "GreenAgent could not complete the analysis. Please check your API setup and try again.";
+      setError(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -66,9 +70,10 @@ export default function Home() {
       }
       const data: GreenAgentSession = await res.json();
       setSession(data);
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      setError("Failed to record green action logs to Hedera. Try again.");
+      const errMsg = e instanceof Error ? e.message : "Failed to record green action logs to Hedera. Try again.";
+      setError(errMsg);
     } finally {
       setIsLogging(false);
     }

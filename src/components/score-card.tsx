@@ -1,6 +1,6 @@
 "use client";
 
-import { Progress } from "@/components/ui/progress";
+import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 import { Zap, Leaf } from "lucide-react";
 
 interface ScoreCardProps {
@@ -35,7 +35,11 @@ export default function ScoreCard({ title, score, description, type }: ScoreCard
         <span className="text-xs text-slate-500">/ 100</span>
       </div>
 
-      <Progress value={score} className="h-2 bg-slate-800" indicatorClassName={`bg-gradient-to-r ${gradient}`} />
+      <Progress value={score} className="flex flex-col gap-1 w-full">
+        <ProgressTrack className="h-2 bg-slate-800 w-full rounded-full">
+          <ProgressIndicator className={`h-full rounded-full bg-gradient-to-r ${gradient}`} />
+        </ProgressTrack>
+      </Progress>
 
       <p className="mt-3.5 text-xs leading-relaxed text-slate-400">
         {description}
