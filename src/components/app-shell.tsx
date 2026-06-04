@@ -8,10 +8,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500/30">
-      {/* Background radial aura glow effects */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-sky-500/5 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen overflow-x-hidden bg-[#0A0E1A] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500/30">
+      {/* Keep decorative glows out of document geometry on narrow screens. */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 h-64 w-64 sm:h-96 sm:w-96 bg-emerald-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 h-64 w-64 sm:h-96 sm:w-96 bg-sky-500/5 rounded-full blur-[120px]" />
+      </div>
 
       {/* Header navbar */}
       <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
@@ -20,12 +22,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-sky-500/20 border border-emerald-500/30 group-hover:border-emerald-400 transition-all">
               <Leaf className="h-5 w-5 text-emerald-400 group-hover:scale-110 transition-transform" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent max-[420px]:sr-only">
               GreenAgent
             </span>
           </Link>
 
-          <nav className="flex items-center gap-6">
+          <nav aria-label="Primary navigation" className="flex items-center gap-3 sm:gap-6">
             <Link
               href="/"
               className={`text-sm font-medium transition-colors hover:text-emerald-400 flex items-center gap-2 ${
@@ -33,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               }`}
             >
               <Cpu className="h-4 w-4" />
-              <span>Copilot</span>
+              <span className="max-[420px]:sr-only">Copilot</span>
             </Link>
             <Link
               href="/history"
@@ -42,7 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               }`}
             >
               <History className="h-4 w-4" />
-              <span>History</span>
+              <span className="max-[420px]:sr-only">History</span>
             </Link>
           </nav>
         </div>
@@ -60,7 +62,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex gap-4">
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Hedera Testnet Integration Active
+              Real and simulated integration status shown per action
             </span>
           </div>
         </div>

@@ -44,6 +44,7 @@ export interface GreenAgentSession {
   mode?: string;
   focusScore: number;
   carbonScore: number;
+  analysisSource?: "gemini" | "fallback";
   agents: {
     contextAnalyzer: ContextAnalyzerOutput;
     carbonEstimator: CarbonEstimatorOutput;
@@ -57,6 +58,8 @@ export interface GreenAgentSession {
     topicId?: string;
     transactionId?: string;
     consensusTimestamp?: string;
+    receiptStatus?: string;
+    network?: "testnet" | "previewnet" | "mainnet";
     status: "pending" | "success" | "failed" | "simulated";
     message?: string;
   };

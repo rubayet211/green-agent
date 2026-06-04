@@ -1,63 +1,123 @@
-import { GreenAgentSession } from "@/types/greenagent";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { getAdminFirestore } from "./admin";
-import fs from "fs/promises";
-import path from "path";
+import { GreenAgentSessionSchema } from "@/lib/validations/greenagent";
+import type { GreenAgentSession } from "@/types/greenagent";
 
-const LOCAL_DB_PATH = path.join(process.cwd(), "data", "local_sessions.json");
+let localWriteQueue = Promise.resolve();
+
+function localDbPath(): string {
+  const fileName =
+    process.env.NODE_ENV === "test" ? "local_sessions.test.json" : "local_sessions.json";
+  return path.join(/* turbopackIgnore: true */ process.cwd(), "data", fileName);
+}
+
+function assertLocalFallbackAllowed(): void {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Firestore configuration is required in production.");
+  }
+}
+
+function shouldFallbackToLocal(error: unknown): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  const reason =
+    typeof error === "object" &&
+    error !== null &&
+    "reason" in error &&
+    typeof error.reason === "string"
+      ? error.reason
+      : "unavailable";
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "number"
+      ? `code ${error.code}`
+      : "unknown code";
+  console.warn(`Firestore ${reason} (${code}); using local development storage.`);
+  return true;
+}
 
 async function ensureLocalDirectory() {
-  await fs.mkdir(path.dirname(LOCAL_DB_PATH), { recursive: true });
+  assertLocalFallbackAllowed();
+  const dbPath = localDbPath();
+  await fs.mkdir(path.dirname(dbPath), { recursive: true });
   try {
-    await fs.access(LOCAL_DB_PATH);
+    await fs.access(dbPath);
   } catch {
-    await fs.writeFile(LOCAL_DB_PATH, JSON.stringify([]));
+    await fs.writeFile(dbPath, JSON.stringify([]));
   }
+}
+
+function parseSession(value: unknown): GreenAgentSession | null {
+  const parsed = GreenAgentSessionSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 async function readLocalSessions(): Promise<GreenAgentSession[]> {
   await ensureLocalDirectory();
-  const data = await fs.readFile(LOCAL_DB_PATH, "utf-8");
   try {
-    return JSON.parse(data);
+    const values = JSON.parse(await fs.readFile(localDbPath(), "utf-8")) as unknown;
+    return Array.isArray(values)
+      ? values.flatMap((value) => {
+          const session = parseSession(value);
+          return session ? [session] : [];
+        })
+      : [];
   } catch {
     return [];
   }
 }
 
-async function writeLocalSessions(sessions: GreenAgentSession[]) {
-  await ensureLocalDirectory();
-  await fs.writeFile(LOCAL_DB_PATH, JSON.stringify(sessions, null, 2));
+async function writeLocalSession(session: GreenAgentSession): Promise<void> {
+  localWriteQueue = localWriteQueue.then(async () => {
+    const sessions = await readLocalSessions();
+    const existingIndex = sessions.findIndex((item) => item.id === session.id);
+    if (existingIndex >= 0) sessions[existingIndex] = session;
+    else sessions.push(session);
+    await fs.writeFile(localDbPath(), JSON.stringify(sessions, null, 2));
+  });
+  await localWriteQueue;
 }
 
 export const sessionStore = {
-  async saveSession(session: GreenAgentSession): Promise<void> {
+  async saveSession(value: GreenAgentSession): Promise<void> {
+    const session = GreenAgentSessionSchema.parse(value);
     const firestore = getAdminFirestore();
     if (firestore) {
-      await firestore.collection("sessions").doc(session.id).set(session);
-    } else {
-      const sessions = await readLocalSessions();
-      const existingIndex = sessions.findIndex(s => s.id === session.id);
-      if (existingIndex > -1) {
-        sessions[existingIndex] = { ...session, updatedAt: new Date().toISOString() };
-      } else {
-        sessions.push(session);
+      try {
+        await firestore.collection("sessions").doc(session.id).set(session);
+        return;
+      } catch (error) {
+        if (!shouldFallbackToLocal(error)) throw error;
       }
-      await writeLocalSessions(sessions);
     }
+    assertLocalFallbackAllowed();
+    await writeLocalSession(session);
   },
 
   async getSession(id: string): Promise<GreenAgentSession | null> {
     const firestore = getAdminFirestore();
     if (firestore) {
-      const doc = await firestore.collection("sessions").doc(id).get();
-      return doc.exists ? (doc.data() as GreenAgentSession) : null;
-    } else {
-      const sessions = await readLocalSessions();
-      return sessions.find(s => s.id === id) || null;
+      try {
+        const document = await firestore.collection("sessions").doc(id).get();
+        return document.exists ? parseSession(document.data()) : null;
+      } catch (error) {
+        if (!shouldFallbackToLocal(error)) throw error;
+      }
     }
+    assertLocalFallbackAllowed();
+    const sessions = await readLocalSessions();
+    return sessions.find((session) => session.id === id) || null;
   },
 
-  async getHistory(anonymousUserId: string): Promise<GreenAgentSession[]> {
+  async getOwnedSession(id: string, anonymousUserId: string): Promise<GreenAgentSession | null> {
+    const session = await this.getSession(id);
+    return session?.anonymousUserId === anonymousUserId ? session : null;
+  },
+
+  async getHistory(anonymousUserId: string, requestedLimit = 20): Promise<GreenAgentSession[]> {
+    const limit = Math.min(Math.max(Math.floor(requestedLimit), 1), 50);
     const firestore = getAdminFirestore();
     if (firestore) {
       try {
@@ -65,20 +125,21 @@ export const sessionStore = {
           .collection("sessions")
           .where("anonymousUserId", "==", anonymousUserId)
           .orderBy("createdAt", "desc")
+          .limit(limit)
           .get();
-        const list: GreenAgentSession[] = [];
-        snapshot.forEach(doc => {
-          list.push(doc.data() as GreenAgentSession);
+        return snapshot.docs.flatMap((document) => {
+          const session = parseSession(document.data());
+          return session ? [session] : [];
         });
-        return list;
-      } catch (dbError) {
-        console.error("Firestore history query failed, fetching local history fallback:", dbError);
-        // Fall back to local logs if firestore query errors out (e.g. index missing)
+      } catch (error) {
+        if (!shouldFallbackToLocal(error)) throw error;
       }
     }
+    assertLocalFallbackAllowed();
     const sessions = await readLocalSessions();
     return sessions
-      .filter(s => s.anonymousUserId === anonymousUserId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
+      .filter((session) => session.anonymousUserId === anonymousUserId)
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .slice(0, limit);
+  },
 };

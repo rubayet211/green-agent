@@ -1,19 +1,23 @@
-import { NextResponse } from "next/server";
 import { sessionStore } from "@/lib/firebase/sessions";
+import { ApiError, apiErrorResponse } from "@/lib/http/api";
+import { getRequestIdentity } from "@/lib/security/identity";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    const { id } = params;
-    const session = await sessionStore.getSession(id);
-
-    if (!session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    const anonymousUserId = getRequestIdentity(request);
+    if (!anonymousUserId) {
+      throw new ApiError(401, "IDENTITY_REQUIRED", "Anonymous identity is required.");
     }
-
-    return NextResponse.json(session);
-  } catch (e) {
-    console.error("Failed to retrieve session details:", e);
-    const errMsg = e instanceof Error ? e.message : "Session query failed";
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    const { id } = await params;
+    const session = await sessionStore.getOwnedSession(id, anonymousUserId);
+    if (!session) {
+      throw new ApiError(404, "SESSION_NOT_FOUND", "Session not found.");
+    }
+    return Response.json(session);
+  } catch (error) {
+    return apiErrorResponse(error);
   }
 }

@@ -1,172 +1,80 @@
 # GreenAgent Design Specification
 
-**Project Name:** GreenAgent  
-**Tagline:** "Get more focused work done while reducing your digital carbon footprint."  
-**Date:** 2026-06-05  
+**Tagline:** Get more focused work done while reducing your digital carbon footprint.
+**Updated:** 2026-06-05
 
----
+## Product Boundary
 
-## 1. Overview
-GreenAgent is a multi-agent AI productivity co-pilot designed to analyze a user's digital habits, provide recommendations optimized for both productivity and environmental sustainability, and log green actions securely on the Hedera testnet using Hedera Consensus Service (HCS). 
+GreenAgent is a Next.js 16 App Router MVP. It analyzes a user-provided work session through a sequential Gemini multi-agent chain, recommends productivity and sustainability actions, stores the session, and optionally logs a selected action through Hedera Consensus Service.
 
-To ensure the project is highly accessible, it will automatically fall back to local mock databases and simulated HCS logging when API keys or credentials are missing from the configuration.
+Digital carbon scores are educational behavioral estimates. They are not measured emissions.
 
----
+## Runtime Flow
 
-## 2. Core Architecture & Data Flows
-
-```
-+-----------------------------------------------------------------+
-|                       Frontend (Next.js 15)                     |
-|  - Home Route (/) with Glassmorphic Input Form & Results         |
-|  - History Route (/history) displaying past sessions            |
-|  - Session Route (/session/[id]) for detail viewing             |
-+-------------------------------+---------------------------------+
-                                |
-                                v
-+-----------------------------------------------------------------+
-|                       API Routing Layer                         |
-|  - POST /api/analyze                                            |
-|  - POST /api/hedera/log-action                                  |
-|  - GET  /api/history                                            |
-|  - GET  /api/session/[id]                                       |
-+-------------------------------+---------------------------------+
-                                |
-                                v
-+-----------------------------------------------------------------+
-|                     Server Logic & SDKs                         |
-|                                                                 |
-|  [AI Orchestration]                                             |
-|  - Context Analyzer  -> Carbon Estimator                        |
-|  - Optimizer Agent   -> Action Recommender                      |
-|                                                                 |
-|  [Storage Engine]                                               |
-|  - Firestore OR Local JSON File Store (Fallback)                |
-|                                                                 |
-|  [Hedera Ledger]                                                |
-|  - Real Hedera Consensus Service OR Simulated Logger (Fallback) |
-+-----------------------------------------------------------------+
+```txt
+Browser
+  -> POST /api/identity
+     -> signed HttpOnly anonymous identity cookie
+  -> POST /api/analyze
+     -> Context Analyzer
+     -> Carbon Estimator
+     -> Optimizer
+     -> Action Recommender
+     -> validated session persistence
+  -> POST /api/hedera/log-action
+     -> owner verification
+     -> real HCS submission or explicit simulation
+     -> session update
 ```
 
----
+`GET /api/history` and `GET /api/session/[id]` only return sessions owned by the signed browser identity.
 
-## 3. Data Models
+## AI Contract
 
-We will represent the session data in the following structures:
+- Model: `gemini-3-flash-preview`.
+- Every agent has a separate prompt and Zod output schema.
+- Gemini receives a JSON response schema.
+- Calls have a timeout and bounded retry behavior.
+- Scores must be finite values from 0 to 100.
+- Optimizer output must contain 3–4 complete recommendations.
+- The best action title is bound to one validated recommendation.
+- Missing or invalid Gemini output triggers deterministic local fallback.
 
-```typescript
-export interface ContextAnalyzerOutput {
-  summary: string;
-  focusRisks: string[];
-  workPattern: string;
-  severity: "low" | "medium" | "high";
-}
+## Persistence Contract
 
-export interface CarbonEstimatorOutput {
-  estimatedImpact: "low" | "medium" | "high";
-  carbonExplanation: string;
-  mainCarbonDrivers: string[];
-  sustainabilityRisk: "low" | "medium" | "high";
-}
+- Production requires Firebase Admin credentials and uses the `sessions` Firestore collection.
+- Development/test may use `data/local_sessions.json`.
+- All persisted and loaded session documents pass `GreenAgentSessionSchema`.
+- History reads are bounded and sorted newest first.
+- Local-file persistence is never treated as production-ready.
 
-export interface Recommendation {
-  id: string;
-  title: string;
-  description: string;
-  productivityBenefit: string;
-  sustainabilityBenefit: string;
-  difficulty: "easy" | "medium" | "hard";
-  impact: "low" | "medium" | "high";
-}
+## Hedera Contract
 
-export interface OptimizerOutput {
-  focusScore: number;
-  carbonScore: number;
-  recommendations: Recommendation[];
-}
+- Supported networks: testnet, previewnet, and mainnet.
+- Operator credentials, network, and topic ID remain server-side.
+- A real submission returns the SDK transaction ID, receipt status, and transaction record consensus timestamp.
+- Missing credentials return `status: "simulated"` plus a reason.
+- Simulated results contain no fake topic ID or transaction ID and never claim ledger confirmation.
 
-export interface ActionRecommenderOutput {
-  bestActionTitle: string;
-  bestActionReason: string;
-  expectedOutcome: string;
-}
+## Security Boundary
 
-export interface GreenAgentSession {
-  id: string;
-  anonymousUserId: string;
-  timestamp: string;
-  tabs: number;
-  hours: number;
-  tasks: string;
-  mode?: string;
-  focusScore: number;
-  carbonScore: number;
-  agents: {
-    contextAnalyzer: ContextAnalyzerOutput;
-    carbonEstimator: CarbonEstimatorOutput;
-    optimizer: OptimizerOutput;
-    actionRecommender: ActionRecommenderOutput;
-  };
-  recommendations: Recommendation[];
-  bestAction: ActionRecommenderOutput;
-  selectedAction?: Recommendation;
-  hedera?: {
-    topicId?: string;
-    transactionId?: string;
-    consensusTimestamp?: string;
-    status: "pending" | "success" | "failed" | "simulated";
-    message?: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-```
+- Browser identity is a signed, HttpOnly, SameSite=Lax cookie.
+- Production requires `ANONYMOUS_SESSION_SECRET`.
+- Session/history/Hedera routes enforce ownership.
+- Analyze and Hedera routes validate bounded bodies and apply per-instance rate limits.
+- API errors expose safe messages rather than raw internal exceptions.
+- Global response headers set CSP, clickjacking, MIME sniffing, referrer, and permissions protections.
 
----
+## UI Principles
 
-## 4. Multi-Agent Chain
+- Calming green/blue visual system with clear productivity and sustainability separation.
+- Responsive from 320px through desktop.
+- Associated form labels, keyboard-operable recommendation selection, semantic headings, accessible progress indicators, and visible loading/error/empty states.
+- Real and simulated Hedera outcomes are visually and verbally distinct.
 
-The `/api/analyze` endpoint simulates a multi-agent system using sequential structured calls to Gemini (via `@google/genai`):
+## Deployment Requirements
 
-1. **Context Analyzer Agent:**
-   - **Role:** Analyzes user input (tabs, hours, tasks, mode) to synthesize a work state.
-   - **Prompt:** Focuses on extracting patterns and key severity risks.
-2. **Carbon Estimator Agent:**
-   - **Role:** Estimates digital carbon footprint from behavioral habits.
-   - **Prompt:** Focuses on environmental impact, drivers, and risks based on context output.
-3. **Optimizer Agent:**
-   - **Role:** Balances focus versus sustainability.
-   - **Prompt:** Generates Focus and Carbon scores, and designs 3-4 specific recommendations.
-4. **Action Recommender Agent:**
-   - **Role:** Selects the single highest-impact action.
-   - **Prompt:** Recommends the best immediate recommendation to log on-chain.
-
-**Fallback Guardrail:**  
-If a Gemini model call fails or returns malformed JSON, a deterministic fallback calculation is executed using local logic (`src/lib/utils/score.ts`) to prevent frontend crashes.
-
----
-
-## 5. Storage Engine (Firestore vs Local JSON Fallback)
-
-To make running the project seamless, the storage engine detects credentials dynamically:
-- **With Firebase configuration:** Connects using `firebase-admin` (server-side) or the Client SDK (if client writes are direct) to save sessions in `/sessions`.
-- **Without Firebase configuration:** Read/writes sessions from a local file at `data/local_sessions.json`.
-- This ensures full CRUD operations for session analysis and history pages function without environment keys.
-
----
-
-## 6. Hedera Consensus Service Logging
-
-When a user selects an action:
-1. **With Hedera keys:** Connects to Hedera Testnet via `@hashgraph/sdk`, submits a JSON payload to the `HEDERA_TOPIC_ID`, and receives transaction consensus.
-2. **Without Hedera keys:** Logs the action, stamps status as `"simulated"`, and returns a mock transaction ID (prefixed with `0.0.9999-mock`).
-
-A developer script at `scripts/create-hedera-topic.ts` provides simple one-time topic initialization on Hedera testnet.
-
----
-
-## 7. UX/UI & Glassmorphic Styling
-
-- **Theme:** Premium, dark-mode first UI centered around deep dark grey backgrounds, translucent panels, emerald green gradients, and sky blue accents.
-- **Micro-Interactions:** Custom dynamic progress spinners and progress bars.
-- **Interactive State Loader:** Step-by-step indicator showcasing each of the 4 agents loading sequentially as the backend processes the request.
+- Vercel production environment must include the identity secret and Firebase Admin credentials.
+- Firestore indexes in `firestore.indexes.json` must be deployed.
+- Real Gemini and Hedera claims require a deployment verification run with project credentials.
+- In-memory rate limits are sufficient for a hackathon MVP but require distributed storage before sustained public traffic.

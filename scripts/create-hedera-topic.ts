@@ -1,4 +1,4 @@
-import { Client, TopicCreateTransaction, PrivateKey } from "@hashgraph/sdk";
+import { Client, PrivateKey, TopicCreateTransaction } from "@hashgraph/sdk";
 import * as dotenv from "dotenv";
 import path from "path";
 
@@ -13,24 +13,51 @@ async function main() {
     process.exit(1);
   }
 
+  const network = process.env.HEDERA_NETWORK || "testnet";
+  if (!["testnet", "previewnet", "mainnet"].includes(network)) {
+    console.error(`Error: unsupported HEDERA_NETWORK "${network}"`);
+    process.exit(1);
+  }
+  let privateKey: PrivateKey;
   try {
-    const client = Client.forTestnet();
-    client.setOperator(accountId, PrivateKey.fromString(privateKeyStr));
+    privateKey = PrivateKey.fromStringECDSA(privateKeyStr);
+  } catch {
+    try {
+      privateKey = PrivateKey.fromStringED25519(privateKeyStr);
+    } catch {
+      try {
+        privateKey = PrivateKey.fromStringDer(privateKeyStr);
+      } catch {
+        privateKey = PrivateKey.fromString(privateKeyStr);
+      }
+    }
+  }
 
-    console.log("Creating Hedera HCS Topic...");
+  const client =
+    network === "mainnet"
+      ? Client.forMainnet()
+      : network === "previewnet"
+        ? Client.forPreviewnet()
+        : Client.forTestnet();
+  client.setOperator(accountId, privateKey);
+
+  try {
+    console.log(`Creating Hedera HCS topic on ${network}...`);
     const transaction = new TopicCreateTransaction();
     const txResponse = await transaction.execute(client);
     const receipt = await txResponse.getReceipt(client);
     const topicId = receipt.topicId;
 
     console.log("-----------------------------------------");
-    console.log(`Successfully created topic!`);
+    console.log("Successfully created topic!");
     console.log(`Topic ID: ${topicId}`);
     console.log("Add this value to HEDERA_TOPIC_ID in your .env.local");
     console.log("-----------------------------------------");
   } catch (e) {
     console.error("Hedera Topic Creation failed:", e);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    client.close();
   }
 }
 

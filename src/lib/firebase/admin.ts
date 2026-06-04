@@ -16,7 +16,7 @@ export function getAdminFirestore() {
           }),
         });
       } catch (e) {
-        console.error("Firebase admin init failed, using fallback:", e);
+        console.error("Firebase admin initialization failed:", e);
         return null;
       }
     } else {

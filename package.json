@@ -7,15 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
     "create-topic": "ts-node scripts/create-hedera-topic.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@google/genai": "^2.8.0",
-    "@hashgraph/sdk": "^2.81.0",
+    "@hashgraph/sdk": "2.80.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
     "lucide-react": "^1.17.0",
     "next": "16.2.7",
@@ -36,6 +37,15 @@
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
+  },
+  "overrides": {
+    "@hashgraph/sdk": {
+      "protobufjs": "7.6.2"
+    },
+    "@hashgraph/proto@2.26.0-beta.3": {
+      "protobufjs": "7.6.2"
+    }
   }
 }

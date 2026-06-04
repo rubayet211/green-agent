@@ -15,6 +15,10 @@ export default function ScoreCard({ title, score, description, type }: ScoreCard
   const gradient = isFocus ? "from-sky-500 to-indigo-500" : "from-emerald-500 to-teal-500";
   const textGlow = isFocus ? "text-sky-400" : "text-emerald-400";
   const Icon = isFocus ? Zap : Leaf;
+  const interpretation = score >= 75 ? "Strong" : score >= 50 ? "Moderate" : "Needs attention";
+  const direction = isFocus
+    ? "Higher means stronger focus."
+    : "Higher means lower digital impact and better sustainability.";
 
   return (
     <div className="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl relative overflow-hidden shadow-lg hover:border-slate-700 transition-colors">
@@ -25,7 +29,7 @@ export default function ScoreCard({ title, score, description, type }: ScoreCard
         <div className={`p-2.5 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-900 border border-slate-700/50 ${textGlow}`}>
           <Icon className="h-5 w-5" />
         </div>
-        <h3 className="text-sm font-semibold text-slate-300">{title}</h3>
+        <h2 className="text-sm font-semibold text-slate-300">{title}</h2>
       </div>
 
       <div className="flex items-baseline gap-2 mb-3">
@@ -35,13 +39,20 @@ export default function ScoreCard({ title, score, description, type }: ScoreCard
         <span className="text-xs text-slate-500">/ 100</span>
       </div>
 
-      <Progress value={score} className="flex flex-col gap-1 w-full">
+      <Progress
+        value={score}
+        aria-label={`${title}: ${score} out of 100`}
+        className="flex flex-col gap-1 w-full"
+      >
         <ProgressTrack className="h-2 bg-slate-800 w-full rounded-full">
           <ProgressIndicator className={`h-full rounded-full bg-gradient-to-r ${gradient}`} />
         </ProgressTrack>
       </Progress>
 
-      <p className="mt-3.5 text-xs leading-relaxed text-slate-400">
+      <p className={`mt-3 text-xs font-semibold ${textGlow}`}>
+        {interpretation}. {direction}
+      </p>
+      <p className="mt-2 text-xs leading-relaxed text-slate-400">
         {description}
       </p>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getAnonymousUserId } from "@/lib/utils/anonymous-user";
+import { useState } from "react";
+import { ensureAnonymousIdentity } from "@/lib/utils/anonymous-user";
 import { GreenAgentSession } from "@/types/greenagent";
 import AnalysisForm from "@/components/analysis-form";
 import AnalysisLoading from "@/components/analysis-loading";
@@ -9,22 +9,14 @@ import ScoreCard from "@/components/score-card";
 import AgentInsights from "@/components/agent-insights";
 import RecommendationCard from "@/components/recommendation-card";
 import HederaConfirmation from "@/components/hedera-confirmation";
-import { Sparkles, BrainCircuit, ShieldAlert } from "lucide-react";
+import { Sparkles, BrainCircuit, ShieldAlert, Info } from "lucide-react";
 
 export default function Home() {
-  const [userId, setUserId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [session, setSession] = useState<GreenAgentSession | null>(null);
   const [selectedActionId, setSelectedActionId] = useState<string>("");
   const [isLogging, setIsLogging] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    const anonymousId = getAnonymousUserId();
-    setTimeout(() => {
-      setUserId(anonymousId);
-    }, 0);
-  }, []);
 
   const handleFormSubmit = async (inputData: { tabs: number; hours: number; tasks: string; mode: string }) => {
     setIsLoading(true);
@@ -33,13 +25,15 @@ export default function Home() {
     setSelectedActionId("");
 
     try {
+      await ensureAnonymousIdentity();
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...inputData, anonymousUserId: userId })
+        body: JSON.stringify(inputData),
       });
       if (!res.ok) {
-        throw new Error("Unable to run digital analysis.");
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Unable to run digital analysis.");
       }
       const data: GreenAgentSession = await res.json();
       setSession(data);
@@ -60,13 +54,15 @@ export default function Home() {
     setIsLogging(true);
     setError("");
     try {
+      await ensureAnonymousIdentity();
       const res = await fetch("/api/hedera/log-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: session.id, actionId: selectedActionId })
       });
       if (!res.ok) {
-        throw new Error("Hedera Consensus Service logging transaction failed.");
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Hedera Consensus Service logging transaction failed.");
       }
       const data: GreenAgentSession = await res.json();
       setSession(data);
@@ -113,6 +109,14 @@ export default function Home() {
       {/* Results layout */}
       {session && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {session.analysisSource === "fallback" && (
+            <div className="flex items-start gap-3 rounded-xl border border-sky-800/50 bg-sky-950/20 p-4 text-sm text-sky-200">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                Gemini is not configured or did not return valid output. These results use GreenAgent&apos;s deterministic local fallback.
+              </p>
+            </div>
+          )}
           {/* Summary statistics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ScoreCard
@@ -136,7 +140,7 @@ export default function Home() {
           <div className="bg-slate-900/20 border border-slate-800/80 p-6 rounded-2xl shadow-md">
             <div className="flex items-center gap-2 mb-3">
               <BrainCircuit className="h-5 w-5 text-emerald-400" />
-              <h3 className="font-bold text-slate-200">Recommended Primary Green Action</h3>
+              <h2 className="font-bold text-slate-200">Recommended Primary Green Action</h2>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-semibold text-emerald-400">{session.bestAction.bestActionTitle}</p>
@@ -151,7 +155,7 @@ export default function Home() {
 
           {/* Complete recommendations list */}
           <div className="space-y-4">
-            <h3 className="font-bold text-lg text-slate-200">Action Plan Recommendations</h3>
+            <h2 className="font-bold text-lg text-slate-200">Action Plan Recommendations</h2>
             <div className="grid grid-cols-1 gap-4">
               {session.recommendations.map((rec) => (
                 <RecommendationCard
@@ -170,9 +174,11 @@ export default function Home() {
           {/* Hedera logger outputs */}
           {session.hedera && (
             <HederaConfirmation
-              topicId={session.hedera.topicId || ""}
-              transactionId={session.hedera.transactionId || ""}
-              consensusTimestamp={session.hedera.consensusTimestamp || ""}
+              topicId={session.hedera.topicId}
+              transactionId={session.hedera.transactionId}
+              consensusTimestamp={session.hedera.consensusTimestamp}
+              receiptStatus={session.hedera.receiptStatus}
+              network={session.hedera.network}
               status={session.hedera.status}
             />
           )}

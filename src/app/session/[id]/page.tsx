@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { GreenAgentSession } from "@/types/greenagent";
+import { ensureAnonymousIdentity } from "@/lib/utils/anonymous-user";
 import ScoreCard from "@/components/score-card";
 import AgentInsights from "@/components/agent-insights";
 import RecommendationCard from "@/components/recommendation-card";
@@ -24,6 +25,7 @@ export default function SessionDetailsPage({ params }: PageProps) {
   useEffect(() => {
     const getSessionData = async () => {
       try {
+        await ensureAnonymousIdentity();
         const res = await fetch(`/api/session/${resolvedParams.id}`);
         if (res.ok) {
           const data: GreenAgentSession = await res.json();
@@ -34,9 +36,13 @@ export default function SessionDetailsPage({ params }: PageProps) {
               : null;
             setSelectedActionId(loggedRec?.id || data.recommendations[0].id);
           }
+        } else {
+          const body = await res.json().catch(() => null);
+          setError(body?.error || "Session could not be loaded.");
         }
       } catch (e) {
         console.error("Failed to load details:", e);
+        setError("Session could not be loaded. Check your connection and try again.");
       } finally {
         setIsLoading(false);
       }
@@ -49,13 +55,15 @@ export default function SessionDetailsPage({ params }: PageProps) {
     setIsLogging(true);
     setError("");
     try {
+      await ensureAnonymousIdentity();
       const res = await fetch("/api/hedera/log-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: session.id, actionId: selectedActionId })
       });
       if (!res.ok) {
-        throw new Error("Hedera Logging operation rejected.");
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Hedera logging operation rejected.");
       }
       const data: GreenAgentSession = await res.json();
       setSession(data);
@@ -82,8 +90,10 @@ export default function SessionDetailsPage({ params }: PageProps) {
     return (
       <div className="text-center py-16 max-w-md mx-auto">
         <ShieldAlert className="h-12 w-12 text-red-400 mx-auto mb-4" />
-        <h4 className="font-bold text-slate-300">Session not found</h4>
-        <p className="text-slate-500 text-xs mt-1">This report could not be retrieved from database records.</p>
+        <h1 className="font-bold text-slate-300">Session not found</h1>
+        <p className="text-slate-500 text-xs mt-1">
+          {error || "This report could not be retrieved from database records."}
+        </p>
         <Link href="/history" className="inline-block mt-4 text-xs font-bold text-emerald-400 hover:underline">
           Back to history
         </Link>
@@ -94,10 +104,13 @@ export default function SessionDetailsPage({ params }: PageProps) {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-        <Link href="/history" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-emerald-400 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to history</span>
-        </Link>
+        <div className="space-y-2">
+          <Link href="/history" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-emerald-400 transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to history</span>
+          </Link>
+          <h1 className="text-2xl font-extrabold text-slate-100">Session Analysis</h1>
+        </div>
         <div className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5 text-slate-500" />
           <span className="text-xs text-slate-400">
@@ -136,7 +149,7 @@ export default function SessionDetailsPage({ params }: PageProps) {
       <div className="bg-slate-900/20 border border-slate-800/80 p-6 rounded-2xl shadow-md">
         <div className="flex items-center gap-2 mb-3">
           <BrainCircuit className="h-5 w-5 text-emerald-400" />
-          <h3 className="font-bold text-slate-200">Recommended Primary Green Action</h3>
+          <h2 className="font-bold text-slate-200">Recommended Primary Green Action</h2>
         </div>
         <div className="space-y-2">
           <p className="text-sm font-semibold text-emerald-400">{session.bestAction.bestActionTitle}</p>
@@ -151,7 +164,7 @@ export default function SessionDetailsPage({ params }: PageProps) {
 
       {/* Complete recommendations list */}
       <div className="space-y-4">
-        <h3 className="font-bold text-lg text-slate-200">Action Plan Recommendations</h3>
+        <h2 className="font-bold text-lg text-slate-200">Action Plan Recommendations</h2>
         <div className="grid grid-cols-1 gap-4">
           {session.recommendations.map((rec) => (
             <RecommendationCard
@@ -170,9 +183,11 @@ export default function SessionDetailsPage({ params }: PageProps) {
       {/* Hedera confirmation log */}
       {session.hedera && (
         <HederaConfirmation
-          topicId={session.hedera.topicId || ""}
-          transactionId={session.hedera.transactionId || ""}
-          consensusTimestamp={session.hedera.consensusTimestamp || ""}
+          topicId={session.hedera.topicId}
+          transactionId={session.hedera.transactionId}
+          consensusTimestamp={session.hedera.consensusTimestamp}
+          receiptStatus={session.hedera.receiptStatus}
+          network={session.hedera.network}
           status={session.hedera.status}
         />
       )}

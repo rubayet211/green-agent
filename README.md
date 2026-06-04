@@ -1,101 +1,144 @@
-# GreenAgent MVP
+# GreenAgent
 
-**Tagline:** "Get more focused work done while reducing your digital carbon footprint."
+**Get more focused work done while reducing your digital carbon footprint.**
 
-GreenAgent is a multi-agent AI productivity co-pilot developed for the **Beyond Tomorrow Summit 2026 Hackathon**. It analyzes your digital work behaviors, computes a Productivity Focus Score and Digital Carbon Score, suggests actions, and records green choices transparently on the Hedera testnet.
+GreenAgent is a multi-agent productivity copilot built for the Beyond Tomorrow Summit 2026 Hackathon. It analyzes a work session, produces validated focus and sustainability scores, recommends practical actions, and can record a selected action through Hedera Consensus Service.
 
----
+## What It Does
 
-## 💡 Core Innovation & Concept
-1. **Habit Assessment:** Evaluates focus metrics (open tabs density, screen hours, active agenda text) to reveal productivity bottlenecks.
-2. **Digital Carbon Footprint Calculation:** Simulates computational energy waste estimates (background tab sync queries, sustained display power levels) to increase digital waste awareness.
-3. **Multi-Agent Reasoning:** Coordinates sequential, structured agent queries in Next.js backend services:
-   - **Context Analyzer Agent:** Contextualizes workflow habits.
-   - **Carbon Estimator Agent:** Estimates carbon footprint values.
-   - **Optimizer Agent:** Balances scores and suggests optimization plans.
-   - **Action Recommender Agent:** Spotlights primary carbon offset actions.
-4. **Blockchain Integrity Logging:** Selects and commits green actions directly on-chain using **Hedera Consensus Service (HCS)**.
+- Captures tabs, screen hours, tasks, and work mode with reusable quick templates.
+- Runs a sequential four-agent Gemini workflow:
+  1. Context Analyzer
+  2. Carbon Estimator
+  3. Optimizer
+  4. Action Recommender
+- Validates every AI response with Zod and falls back to deterministic local analysis when Gemini is unavailable or invalid.
+- Stores sessions in Firestore in production and a local JSON file in development/test.
+- Submits selected actions to Hedera when configured.
+- Clearly labels unconfigured Hedera activity as simulated and never creates fake transaction IDs.
+- Keeps history private to a signed anonymous browser identity.
 
----
+## Architecture
 
-## 🛠️ Technology Stack
-- **Framework:** Next.js 16 (App Router, strict TypeScript)
-- **Styles:** Tailwind CSS with dynamic custom dark glassmorphic themes
-- **UI Library:** shadcn/ui and Lucide Icons
-- **AI SDK:** `@google/genai` (standard model `gemini-2.5-flash`)
-- **Database:** Firebase Firestore (Admin SDK server operations)
-- **Distributed Ledger:** `@hashgraph/sdk` (Hedera HCS Testnet)
-- **Schema Validation:** Zod
+```txt
+Browser
+  -> signed HttpOnly anonymous identity cookie
+  -> Next.js App Router API routes
+     -> lib/ai: Gemini orchestration + validated fallback
+     -> lib/firebase: validated session persistence + ownership checks
+     -> lib/hedera: HCS submission + receipt/record verification
+```
 
----
+Core stack: Next.js 16 App Router, TypeScript, Tailwind CSS, shadcn/ui, Zod, `@google/genai`, Firebase Admin, and `@hashgraph/sdk`.
 
-## 🚀 Seamless Fallback Mode (Runs Out of the Box!)
-To support instant evaluation without initial api configuration:
-- **Firestore Fallback:** Reads and writes are directed automatically to a local file store at `data/local_sessions.json` if Firebase key values are omitted.
-- **Gemini Fallback:** Local scoring heuristics execute, providing identical mock JSON session properties so analysis completes.
-- **Hedera Fallback:** Action submissions create simulated transaction receipts and topic IDs prefixed with `0.0.9999-mock`.
+## Local Setup
 
----
+Requirements: Node.js 22 and npm.
 
-## ⚙️ Environment Variables Config (.env.local)
-Copy `.env.local.example` into `.env.local` and populate:
+```bash
+npm install
+Copy-Item .env.local.example .env.local
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+Without third-party credentials, development mode uses deterministic Gemini fallback analysis, local session storage, and explicitly simulated Hedera results. This supports UI evaluation but does not prove live integrations.
+
+## Environment
+
 ```env
-GEMINI_API_KEY=
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
+# Required in production
+ANONYMOUS_SESSION_SECRET=
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
+
+# Optional; enables live Gemini
+GEMINI_API_KEY=
+
+# Optional; enables live Hedera logging
 HEDERA_ACCOUNT_ID=
 HEDERA_PRIVATE_KEY=
+HEDERA_NETWORK=testnet
 HEDERA_TOPIC_ID=
 ```
-*Note:* If pasting multi-line Firebase private keys directly into standard shell configurations, ensure newline characters `\n` are replaced with normal strings properly.
 
----
+GreenAgent uses `gemini-3-flash-preview`. Gemini and Hedera credentials are server-side only.
 
-## 📋 Step-by-Step Developer Setup
+Generate an identity secret with:
 
-### 1. Installation
-Install all required workspace modules:
 ```bash
-npm install
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 2. Set Up Hedera Consensus Topic (Optional)
-If you have configured `HEDERA_ACCOUNT_ID` and `HEDERA_PRIVATE_KEY`, you can automatically provision a new HCS topic using our build helper:
+## Firebase Setup
+
+1. Create a Firebase project and service account.
+2. Put the Admin SDK values in `.env.local`.
+3. Create Firestore in Native mode.
+4. Deploy the included history index:
+
+```bash
+npx firebase-tools deploy --only firestore:indexes
+```
+
+Production deliberately fails session writes when Firebase Admin is not configured. Local JSON persistence exists only in development/test and is not suitable for Vercel.
+
+## Hedera Setup
+
+Configure an operator account and network, then create an HCS topic:
+
 ```bash
 npm run create-topic
 ```
-Copy the output `Topic ID` and add it to `HEDERA_TOPIC_ID` in `.env.local`.
 
-### 3. Running Locally
-Execute the local Next.js dev server:
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to test the dashboard.
+Copy the returned topic ID to `HEDERA_TOPIC_ID`. A successful app submission returns the real topic ID, transaction ID, receipt status, and consensus timestamp. Missing configuration returns a `simulated` status with a reason and no fake ledger identifiers.
 
-### 4. Compiling the Production Build
-Test strict build verification:
+## Verification
+
 ```bash
+npm run lint
+npm run type-check
+npm test
 npm run build
+npm audit --omit=dev --audit-level=high
 ```
 
----
+GitHub Actions runs the same quality gates.
 
-## ⚡ Hackathon Demo Script
-1. Open the homepage dashboard console.
-2. Input **115 tabs**, **12 screen hours**, and tasks as: *"Researching Hedera consensus tools, chatting with development groups on Slack, keeping 10 server threads running."* Choose mode as *"Research"*.
-3. Click **Analyze with GreenAgent**.
-4. Review the progressive loading states as the context analysis runs.
-5. Check out the calculated scores: Focus Score (Low due to heavy multi-tasking) and Carbon Score (High carbon footprint risk).
-6. Read the detailed insights drafted by the Context Analyzer and Carbon Estimator.
-7. Browse the Action Plan. Select the **"Consolidate unused tabs"** action card.
-8. Click **Log as Green Action on Hedera**.
-9. Observe transaction timestamp receipts and explorer log values update dynamically.
-10. Visit `/history` to review sessions.
+## Deploy To Vercel
+
+1. Configure all production-required environment variables in Vercel.
+2. Deploy the Firestore index.
+3. Deploy the app.
+4. Verify a real Gemini analysis, Firestore history entry, and Hedera transaction on HashScan before presenting them as live.
+
+Security notes:
+
+- Anonymous ownership uses a signed HttpOnly cookie. It is not account authentication and does not synchronize across browsers.
+- Rate limiting is in-memory per application instance; use a distributed rate limiter before sustained public traffic.
+- Carbon scoring is an educational behavioral estimate, not a measured emissions calculation.
+
+## Demo Script
+
+1. Choose **Research Mode** or enter 115 tabs, 12 hours, and a research-heavy task list.
+2. Select **Analyze with GreenAgent**.
+3. Explain the validated four-agent sequence and compare Focus and Carbon scores.
+4. Select a recommendation and log it.
+5. If Hedera is configured, open the real HashScan transaction. Otherwise, explicitly show the simulated status.
+6. Open **History** to show the persisted session and action status.
+
+## Known Limitations
+
+- Live Gemini, Firestore, and Hedera behavior requires project-specific credentials and must be verified in the target deployment.
+- A failure in any Gemini agent currently switches the complete analysis to deterministic fallback.
+- Four sequential Gemini calls prioritize agent clarity over minimum latency.
+- Anonymous sessions are browser-bound rather than user accounts.
+
+## Roadmap
+
+- Distributed rate limiting and observability.
+- Partial-agent recovery and streamed progress.
+- Firestore-backed pagination.
+- Optional authenticated cross-device history.

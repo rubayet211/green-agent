@@ -1,72 +1,81 @@
-import { NextResponse } from "next/server";
-import { HederaLogRequestSchema } from "@/lib/validations/greenagent";
 import { sessionStore } from "@/lib/firebase/sessions";
-import { submitToTopic } from "@/lib/hedera/client";
+import { isHederaSignatureError, submitToTopic } from "@/lib/hedera/client";
+import { ApiError, apiErrorResponse, readJsonBody } from "@/lib/http/api";
+import { getRequestIdentity } from "@/lib/security/identity";
+import { apiRateLimiter } from "@/lib/security/rate-limit";
+import { HederaLogRequestSchema } from "@/lib/validations/greenagent";
 
-export async function POST(req: Request) {
+const HEDERA_RATE_LIMIT = { limit: 5, windowMs: 60_000 };
+
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    
-    // Validate request schema
-    const { sessionId, actionId } = HederaLogRequestSchema.parse(body);
+    const anonymousUserId = getRequestIdentity(request);
+    if (!anonymousUserId) {
+      throw new ApiError(401, "IDENTITY_REQUIRED", "Anonymous identity is required.");
+    }
+    const rateLimit = apiRateLimiter.consume(
+      `hedera:${anonymousUserId}`,
+      HEDERA_RATE_LIMIT,
+    );
+    if (!rateLimit.allowed) {
+      throw new ApiError(429, "RATE_LIMITED", "Too many Hedera requests. Try again shortly.");
+    }
 
-    const session = await sessionStore.getSession(sessionId);
+    const { sessionId, actionId } = await readJsonBody(request, HederaLogRequestSchema, 4_096);
+    const session = await sessionStore.getOwnedSession(sessionId, anonymousUserId);
     if (!session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+      throw new ApiError(404, "SESSION_NOT_FOUND", "Session not found.");
     }
-
-    const recommendation = session.recommendations.find(r => r.id === actionId);
+    const recommendation = session.recommendations.find((item) => item.id === actionId);
     if (!recommendation) {
-      return NextResponse.json({ error: "Recommendation not found" }, { status: 404 });
+      throw new ApiError(404, "RECOMMENDATION_NOT_FOUND", "Recommendation not found.");
     }
 
-    const logPayload = {
-      app: "GreenAgent",
-      type: "GREEN_ACTION_LOG",
-      timestamp: new Date().toISOString(),
-      sessionId: session.id,
-      focusScore: session.focusScore,
-      carbonScore: session.carbonScore,
-      actionTitle: recommendation.title,
-      actionDescription: recommendation.description,
-      network: "hedera-testnet"
-    };
-
-    let hederaStatus: "success" | "simulated" = "success";
-    let hederaTopicId = "";
-    let hederaTxId = "";
-    let hederaConsensusTimestamp = "";
-
-    const result = await submitToTopic(logPayload);
-
-    if (result) {
-      hederaStatus = "success";
-      hederaTopicId = result.topicId;
-      hederaTxId = result.transactionId;
-      hederaConsensusTimestamp = result.consensusTimestamp;
-    } else {
-      hederaStatus = "simulated";
-      hederaTopicId = process.env.HEDERA_TOPIC_ID || "0.0.9999-mock";
-      hederaTxId = `0.0.${Math.floor(Math.random() * 100000)}@${Date.now().toString().slice(0, 10)}.${Math.floor(Math.random() * 10000)}`;
-      hederaConsensusTimestamp = new Date().toISOString();
+    let result: Awaited<ReturnType<typeof submitToTopic>>;
+    try {
+      result = await submitToTopic({
+        app: "GreenAgent",
+        type: "GREEN_ACTION_LOG",
+        timestamp: new Date().toISOString(),
+        sessionId: session.id,
+        focusScore: session.focusScore,
+        carbonScore: session.carbonScore,
+        actionTitle: recommendation.title,
+        actionDescription: recommendation.description,
+        network: `hedera-${process.env.HEDERA_NETWORK || "testnet"}`,
+      });
+    } catch (error) {
+      if (isHederaSignatureError(error)) {
+        throw new ApiError(
+          502,
+          "HEDERA_INVALID_SIGNATURE",
+          "Hedera rejected the configured operator signature. Check that HEDERA_PRIVATE_KEY matches HEDERA_ACCOUNT_ID and uses the correct key type.",
+        );
+      }
+      throw error;
     }
 
     session.selectedAction = recommendation;
-    session.hedera = {
-      topicId: hederaTopicId,
-      transactionId: hederaTxId,
-      consensusTimestamp: hederaConsensusTimestamp,
-      status: hederaStatus,
-      message: `Your green action has been logged on Hedera Testnet${hederaStatus === "simulated" ? " (Simulated Mode)" : ""}.`
-    };
+    session.hedera =
+      result.status === "success"
+        ? {
+            topicId: result.topicId,
+            transactionId: result.transactionId,
+            consensusTimestamp: result.consensusTimestamp,
+            receiptStatus: result.receiptStatus,
+            network: result.network,
+            status: "success",
+            message: "Your green action was recorded on Hedera.",
+          }
+        : {
+            network: result.network,
+            status: "simulated",
+            message: `Simulation only: ${result.reason}`,
+          };
     session.updatedAt = new Date().toISOString();
-
     await sessionStore.saveSession(session);
-
-    return NextResponse.json(session);
-  } catch (e) {
-    console.error("Hedera log action route crash:", e);
-    const errMsg = e instanceof Error ? e.message : "Failed to log on Hedera";
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    return Response.json(session);
+  } catch (error) {
+    return apiErrorResponse(error);
   }
 }

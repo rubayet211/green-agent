@@ -1,20 +1,15 @@
-import { NextResponse } from "next/server";
 import { sessionStore } from "@/lib/firebase/sessions";
+import { ApiError, apiErrorResponse } from "@/lib/http/api";
+import { getRequestIdentity } from "@/lib/security/identity";
 
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const anonymousUserId = searchParams.get("anonymousUserId");
-
+    const anonymousUserId = getRequestIdentity(request);
     if (!anonymousUserId) {
-      return NextResponse.json({ error: "anonymousUserId query parameter is required" }, { status: 400 });
+      throw new ApiError(401, "IDENTITY_REQUIRED", "Anonymous identity is required.");
     }
-
-    const list = await sessionStore.getHistory(anonymousUserId);
-    return NextResponse.json(list);
-  } catch (e) {
-    console.error("Failed to query history:", e);
-    const errMsg = e instanceof Error ? e.message : "History query failed";
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    return Response.json(await sessionStore.getHistory(anonymousUserId));
+  } catch (error) {
+    return apiErrorResponse(error);
   }
 }
