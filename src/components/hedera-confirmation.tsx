@@ -9,6 +9,9 @@ interface HederaConfirmationProps {
   receiptStatus?: string;
   network?: "testnet" | "previewnet" | "mainnet";
   status: "success" | "simulated" | "failed" | "pending";
+  actionTitle?: string;
+  estimatedFinancialBenefit?: string;
+  hiddenCostScore?: number;
 }
 
 export default function HederaConfirmation({
@@ -18,6 +21,9 @@ export default function HederaConfirmation({
   receiptStatus,
   network = "testnet",
   status,
+  actionTitle,
+  estimatedFinancialBenefit,
+  hiddenCostScore,
 }: HederaConfirmationProps) {
   const isSimulated = status === "simulated";
   const dateFormatted = consensusTimestamp
@@ -27,7 +33,7 @@ export default function HederaConfirmation({
   return (
     <section
       aria-live="polite"
-      className={`w-full p-6 rounded-2xl shadow-xl mt-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-300 ${
+      className={`w-full p-6 rounded-xl shadow-xl mt-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-300 ${
         isSimulated
           ? "bg-sky-950/20 border border-sky-500/30"
           : "bg-emerald-950/20 border border-emerald-500/30"
@@ -42,29 +48,41 @@ export default function HederaConfirmation({
         <div className="space-y-4 w-full min-w-0">
           <div>
             <h2 className="font-bold text-slate-100">
-              {isSimulated ? "Green Action Simulation Complete" : "Green Action Recorded on Hedera"}
+              {isSimulated ? "Sustainable Work Milestone Simulated" : "Sustainable Work Milestone Logged"}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
               {isSimulated
-                ? "No Hedera transaction was submitted. Configure operator credentials and a topic ID to create a public ledger proof."
+                ? "Simulated milestone - no live Hedera transaction was created. Configure operator credentials and a topic ID for a public HCS record."
                 : `Confirmed on Hedera ${network} with receipt status ${receiptStatus || "SUCCESS"}.`}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900/60 text-xs">
+          <dl className="grid grid-cols-1 gap-3 rounded-lg border border-slate-900/60 bg-slate-950/40 p-4 text-xs md:grid-cols-3">
             <div className="space-y-1">
-              <span className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Topic ID</span>
-              <span className="font-mono text-emerald-400 break-all">{topicId || "Not submitted"}</span>
+              <dt className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Action</dt>
+              <dd className="text-slate-200 break-words">{actionTitle || "Sustainable work action"}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Estimated benefit</dt>
+              <dd className="text-emerald-300">{estimatedFinancialBenefit || "Directional estimate"}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Hidden Cost Score</dt>
+              <dd className="text-slate-200 font-mono">{hiddenCostScore ?? "Not recorded"}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Topic ID</dt>
+              <dd className="font-mono text-emerald-400 break-all">{topicId || "Not submitted"}</dd>
             </div>
             <div className="space-y-1 overflow-hidden">
-              <span className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Transaction ID</span>
-              <span className="font-mono text-slate-300 break-all select-all">{transactionId || "Not submitted"}</span>
+              <dt className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Transaction ID</dt>
+              <dd className="font-mono text-slate-300 break-all select-all">{transactionId || "Not submitted"}</dd>
             </div>
             <div className="space-y-1">
-              <span className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Consensus Time</span>
-              <span className="text-slate-300 font-mono">{dateFormatted}</span>
+              <dt className="text-slate-500 block text-[11px] uppercase font-bold tracking-wider">Consensus Time</dt>
+              <dd className="text-slate-300 font-mono">{dateFormatted}</dd>
             </div>
-          </div>
+          </dl>
 
           {!isSimulated && transactionId && (
             <a

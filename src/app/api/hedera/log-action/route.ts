@@ -1,5 +1,6 @@
 import { sessionStore } from "@/lib/firebase/sessions";
 import { isHederaSignatureError, submitToTopic } from "@/lib/hedera/client";
+import { buildSustainableWorkMilestonePayload } from "@/lib/hedera/milestone-payload";
 import { ApiError, apiErrorResponse, readJsonBody } from "@/lib/http/api";
 import { getRequestIdentity } from "@/lib/security/identity";
 import { apiRateLimiter } from "@/lib/security/rate-limit";
@@ -33,17 +34,13 @@ export async function POST(request: Request) {
 
     let result: Awaited<ReturnType<typeof submitToTopic>>;
     try {
-      result = await submitToTopic({
-        app: "GreenAgent",
-        type: "GREEN_ACTION_LOG",
-        timestamp: new Date().toISOString(),
-        sessionId: session.id,
-        focusScore: session.focusScore,
-        carbonScore: session.carbonScore,
-        actionTitle: recommendation.title,
-        actionDescription: recommendation.description,
-        network: `hedera-${process.env.HEDERA_NETWORK || "testnet"}`,
-      });
+      result = await submitToTopic(
+        buildSustainableWorkMilestonePayload({
+          session,
+          recommendation,
+          network: `hedera-${process.env.HEDERA_NETWORK || "testnet"}`,
+        }),
+      );
     } catch (error) {
       if (isHederaSignatureError(error)) {
         throw new ApiError(
@@ -65,11 +62,13 @@ export async function POST(request: Request) {
             receiptStatus: result.receiptStatus,
             network: result.network,
             status: "success",
-            message: "Your green action was recorded on Hedera.",
+            actionType: "SUSTAINABLE_WORK_MILESTONE",
+            message: "Your Sustainable Work Milestone was recorded on Hedera.",
           }
         : {
             network: result.network,
             status: "simulated",
+            actionType: "SUSTAINABLE_WORK_MILESTONE",
             message: `Simulation only: ${result.reason}`,
           };
     session.updatedAt = new Date().toISOString();

@@ -3,7 +3,7 @@
 import { Recommendation } from "@/types/greenagent";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Leaf, Zap } from "lucide-react";
+import { Clock, Leaf, Wallet, Zap } from "lucide-react";
 
 interface RecommendationCardProps {
   recommendation: Recommendation;
@@ -57,6 +57,27 @@ export default function RecommendationCard({
 
           <p className="text-sm text-slate-400 leading-relaxed">{recommendation.description}</p>
 
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-sky-500/20 bg-sky-500/10 p-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-sky-300">
+                <Clock className="h-3.5 w-3.5" />
+                Estimated time saved
+              </div>
+              <p className="mt-1 text-sm font-extrabold text-slate-100">
+                +{recommendation.estimatedTimeSavedMinutes} min recovered focus
+              </p>
+            </div>
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-300">
+                <Wallet className="h-3.5 w-3.5" />
+                Estimated financial benefit
+              </div>
+              <p className="mt-1 text-sm font-extrabold text-slate-100">
+                {recommendation.financialBenefitLabel}
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-800/80 pt-3">
             <div className="flex items-start gap-2">
               <Zap className="h-3.5 w-3.5 text-sky-400 shrink-0 mt-0.5" />
@@ -95,7 +116,7 @@ export default function RecommendationCard({
                 ? "Logging to Hedera..."
                 : isLogged
                   ? "Action already processed"
-                  : "Log as Green Action on Hedera"}
+                  : "Log as Sustainable Work Milestone"}
             </Button>
           </div>
         )}

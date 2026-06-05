@@ -3,13 +3,13 @@ import { callAgent, isExpectedGeminiFallback, summarizeGeminiError } from "./gem
 import { createFallbackAnalysis, type AnalysisResult } from "./fallback";
 import {
   ACTION_RECOMMENDER_PROMPT,
-  CARBON_ESTIMATOR_PROMPT,
+  CARBON_COST_ESTIMATOR_PROMPT,
   CONTEXT_ANALYZER_PROMPT,
   OPTIMIZER_PROMPT,
 } from "./prompts";
 import {
   ActionRecommenderOutputSchema,
-  CarbonEstimatorOutputSchema,
+  CarbonCostEstimatorOutputSchema,
   ContextAnalyzerOutputSchema,
   OptimizerAgentOutputSchema,
   type AnalyzeRequest,
@@ -43,24 +43,27 @@ export async function runAnalysis(
       tabs: String(input.tabs),
       hours: String(input.hours),
       tasks: input.tasks,
-      mode: input.mode || "Standard",
+      mode: input.mode || "Client Project",
+      hourlyRate: String(input.hourlyRate ?? 15),
+      billablePercentage: String(input.billablePercentage ?? 70),
+      currency: input.currency,
     };
     const contextAnalyzer = await invoke(
       fillPrompt(CONTEXT_ANALYZER_PROMPT, base),
       ContextAnalyzerOutputSchema,
     );
-    const carbonEstimator = await invoke(
-      fillPrompt(CARBON_ESTIMATOR_PROMPT, {
+    const carbonCostEstimator = await invoke(
+      fillPrompt(CARBON_COST_ESTIMATOR_PROMPT, {
         ...base,
         contextOutput: JSON.stringify(contextAnalyzer),
       }),
-      CarbonEstimatorOutputSchema,
+      CarbonCostEstimatorOutputSchema,
     );
     const optimizer = await invoke(
       fillPrompt(OPTIMIZER_PROMPT, {
         ...base,
         contextOutput: JSON.stringify(contextAnalyzer),
-        carbonOutput: JSON.stringify(carbonEstimator),
+        carbonCostOutput: JSON.stringify(carbonCostEstimator),
       }),
       OptimizerAgentOutputSchema,
     );
@@ -86,16 +89,30 @@ export async function runAnalysis(
     const bestAction = {
       ...requestedBestAction,
       bestActionTitle: selectedRecommendation.title,
+      financialImpact: requestedBestAction.financialImpact,
+      carbonImpact: requestedBestAction.carbonImpact,
+      milestoneLabel: "Sustainable Work Milestone" as const,
     };
 
     return {
       contextAnalyzer,
-      carbonEstimator,
+      carbonCostEstimator,
       focusScore: optimizer.focusScore,
-      carbonScore: optimizer.carbonScore,
+      hiddenCostScore: optimizer.hiddenCostScore,
+      estimatedRevenueLoss: carbonCostEstimator.estimatedRevenueLoss,
+      estimatedTimeLostMinutes: contextAnalyzer.estimatedLostFocusMinutes,
+      estimatedElectricityCost: carbonCostEstimator.estimatedElectricityCost,
+      estimatedCarbonImpact: {
+        level: carbonCostEstimator.estimatedImpact,
+        explanation: carbonCostEstimator.carbonExplanation,
+      },
+      currency: input.currency,
+      hourlyRate: input.hourlyRate,
+      billablePercentage: input.billablePercentage,
       recommendations,
       bestAction,
       source: "gemini",
+      carbonScore: optimizer.hiddenCostScore,
     };
   } catch (error) {
     if (isExpectedGeminiFallback(error)) {

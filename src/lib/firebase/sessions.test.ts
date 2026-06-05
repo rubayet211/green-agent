@@ -16,8 +16,20 @@ function sampleSession(owner = OWNER_A): GreenAgentSession {
     tabs: 10,
     hours: 5,
     tasks: "Test storage ownership",
+    mode: "Client Project",
+    hourlyRate: 20,
+    billablePercentage: 75,
+    currency: "USD",
     focusScore: 80,
+    hiddenCostScore: 75,
     carbonScore: 75,
+    estimatedRevenueLoss: 10,
+    estimatedTimeLostMinutes: 30,
+    estimatedElectricityCost: 0.1,
+    estimatedCarbonImpact: {
+      level: "low",
+      explanation: "Directional estimate.",
+    },
     analysisSource: "fallback",
     agents: {
       contextAnalyzer: {
@@ -25,18 +37,26 @@ function sampleSession(owner = OWNER_A): GreenAgentSession {
         focusRisks: ["Risk"],
         workPattern: "Focused",
         severity: "low",
+        estimatedLostFocusMinutes: 30,
+        earningRiskExplanation: "Estimate.",
       },
-      carbonEstimator: {
+      carbonCostEstimator: {
         estimatedImpact: "low",
         carbonExplanation: "Explanation",
         mainCarbonDrivers: ["Driver"],
         sustainabilityRisk: "low",
+        estimatedRevenueLoss: 10,
+        estimatedElectricityCost: 0.1,
+        hiddenCostExplanation: "Explanation.",
       },
-      optimizer: { focusScore: 80, carbonScore: 75, recommendations: [] },
+      optimizer: { focusScore: 80, hiddenCostScore: 75, carbonScore: 75, recommendations: [] },
       actionRecommender: {
         bestActionTitle: "Action",
         bestActionReason: "Reason",
         expectedOutcome: "Outcome",
+        financialImpact: "$10.00 potential earning protected",
+        carbonImpact: "Lower background activity.",
+        milestoneLabel: "Sustainable Work Milestone",
       },
     },
     recommendations: [],
@@ -44,6 +64,9 @@ function sampleSession(owner = OWNER_A): GreenAgentSession {
       bestActionTitle: "Action",
       bestActionReason: "Reason",
       expectedOutcome: "Outcome",
+      financialImpact: "$10.00 potential earning protected",
+      carbonImpact: "Lower background activity.",
+      milestoneLabel: "Sustainable Work Milestone",
     },
     createdAt: now,
     updatedAt: now,
@@ -119,5 +142,27 @@ describe("sessionStore", () => {
     await expect(sessionStore.getHistory(OWNER_A)).resolves.toMatchObject([
       { id: session.id },
     ]);
+  });
+
+  it("reads local development storage after a Firestore write fallback", async () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const firestoreWithMissingDocument = {
+      collection: () => ({
+        doc: () => ({
+          set: async () => {
+            throw new Error("7 PERMISSION_DENIED: Cloud Firestore API is disabled");
+          },
+          get: async () => ({ exists: false, data: () => undefined }),
+        }),
+      }),
+    };
+    const { sessionStore } = await loadStore(firestoreWithMissingDocument);
+    const session = sampleSession();
+
+    await sessionStore.saveSession(session);
+
+    await expect(sessionStore.getOwnedSession(session.id, OWNER_A)).resolves.toMatchObject({
+      id: session.id,
+    });
   });
 });

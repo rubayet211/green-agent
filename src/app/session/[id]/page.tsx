@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { GreenAgentSession } from "@/types/greenagent";
 import { ensureAnonymousIdentity } from "@/lib/utils/anonymous-user";
+import { formatMoneyEstimate } from "@/lib/utils/score";
 import ScoreCard from "@/components/score-card";
 import AgentInsights from "@/components/agent-insights";
 import RecommendationCard from "@/components/recommendation-card";
@@ -63,13 +64,13 @@ export default function SessionDetailsPage({ params }: PageProps) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error || "Hedera logging operation rejected.");
+        throw new Error(body?.error || "Sustainable Work Milestone logging rejected.");
       }
       const data: GreenAgentSession = await res.json();
       setSession(data);
     } catch (e) {
       console.error(e);
-      const errMsg = e instanceof Error ? e.message : "Failed to record green action logs to Hedera HCS.";
+      const errMsg = e instanceof Error ? e.message : "Failed to record Sustainable Work Milestone to Hedera HCS.";
       setError(errMsg);
     } finally {
       setIsLogging(false);
@@ -109,7 +110,7 @@ export default function SessionDetailsPage({ params }: PageProps) {
             <ArrowLeft className="h-4 w-4" />
             <span>Back to history</span>
           </Link>
-          <h1 className="text-2xl font-extrabold text-slate-100">Session Analysis</h1>
+          <h1 className="text-2xl font-extrabold text-slate-100">Freelancer Session Analysis</h1>
         </div>
         <div className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5 text-slate-500" />
@@ -129,27 +130,42 @@ export default function SessionDetailsPage({ params }: PageProps) {
       {/* Summary statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ScoreCard
-          title="Productivity Focus Score"
+          title="Focus Score"
           score={session.focusScore}
           type="focus"
-          description={`Work mode style parameter is logged as ${session.mode || "Standard"}.`}
+          description="How efficiently this session converts time into earning potential."
+          estimates={[
+            { label: "Potential focus time lost", value: `${session.estimatedTimeLostMinutes} min` },
+            { label: "Work mode", value: session.mode || "Client Project" },
+            { label: "Billable calibration", value: `${session.billablePercentage ?? 70}%` },
+          ]}
         />
         <ScoreCard
-          title="Digital Carbon Score"
-          score={session.carbonScore}
-          type="carbon"
-          description="Computed baseline based on browser tabs density and estimated screen display uptime parameters."
+          title="Hidden Cost Score"
+          score={session.hiddenCostScore ?? session.carbonScore ?? 0}
+          type="hidden-cost"
+          description="How low your estimated lost earning, energy waste, and digital carbon impact are."
+          estimates={[
+            {
+              label: "Estimated hidden loss",
+              value: formatMoneyEstimate(session.estimatedRevenueLoss ?? 0, session.currency ?? "USD"),
+            },
+            {
+              label: "Digital waste level",
+              value: session.estimatedCarbonImpact?.level ?? "low",
+            },
+          ]}
         />
       </div>
 
       {/* Detailed agent insights */}
-      <AgentInsights context={session.agents.contextAnalyzer} carbon={session.agents.carbonEstimator} />
+      <AgentInsights context={session.agents.contextAnalyzer} carbonCost={session.agents.carbonCostEstimator} />
 
       {/* Best Action Spotlight */}
       <div className="bg-slate-900/20 border border-slate-800/80 p-6 rounded-2xl shadow-md">
         <div className="flex items-center gap-2 mb-3">
           <BrainCircuit className="h-5 w-5 text-emerald-400" />
-          <h2 className="font-bold text-slate-200">Recommended Primary Green Action</h2>
+          <h2 className="font-bold text-slate-200">Recommended Sustainable Work Milestone</h2>
         </div>
         <div className="space-y-2">
           <p className="text-sm font-semibold text-emerald-400">{session.bestAction.bestActionTitle}</p>
@@ -158,6 +174,12 @@ export default function SessionDetailsPage({ params }: PageProps) {
           </p>
           <p className="text-xs text-slate-400 leading-relaxed">
             <strong className="text-slate-300">Expected Outcome:</strong> {session.bestAction.expectedOutcome}
+          </p>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            <strong className="text-slate-300">Financial Impact:</strong> {session.bestAction.financialImpact}
+          </p>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            <strong className="text-slate-300">Sustainability Impact:</strong> {session.bestAction.carbonImpact}
           </p>
         </div>
       </div>
@@ -189,6 +211,9 @@ export default function SessionDetailsPage({ params }: PageProps) {
           receiptStatus={session.hedera.receiptStatus}
           network={session.hedera.network}
           status={session.hedera.status}
+          actionTitle={session.selectedAction?.title}
+          estimatedFinancialBenefit={session.selectedAction?.financialBenefitLabel}
+          hiddenCostScore={session.hiddenCostScore ?? session.carbonScore ?? 0}
         />
       )}
     </div>

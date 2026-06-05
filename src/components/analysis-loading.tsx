@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { Cpu, Leaf, Zap, BarChart } from "lucide-react";
 
 const steps = [
-  { text: "Context Analyzer is reading your work pattern...", icon: Cpu },
-  { text: "Carbon Estimator is estimating digital impact...", icon: Leaf },
-  { text: "Optimizer Agent is balancing focus and sustainability...", icon: Zap },
-  { text: "Action Recommender is choosing your best green action...", icon: BarChart }
+  { text: "Context Analyzer is checking focus risks...", icon: Cpu },
+  { text: "Carbon & Cost Estimator is estimating hidden digital costs...", icon: Leaf },
+  { text: "Optimizer Agent is finding earning recovery opportunities...", icon: Zap },
+  { text: "Action Recommender is selecting your Sustainable Work Milestone...", icon: BarChart }
 ];
 
 export default function AnalysisLoading() {
@@ -37,7 +37,7 @@ export default function AnalysisLoading() {
       </div>
 
       <div className="space-y-4 w-full text-center">
-        <h3 className="text-lg font-semibold text-emerald-400">GreenAgent Analyzing Habits</h3>
+        <h3 className="text-lg font-semibold text-emerald-400">GreenAgent is estimating focus loss, hidden cost, and sustainable work opportunities...</h3>
         <div className="space-y-3 max-w-sm mx-auto text-left">
           {steps.map((step, idx) => {
             const Icon = step.icon;

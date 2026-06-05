@@ -58,7 +58,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Footer layout */}
       <footer className="border-t border-slate-900 bg-slate-950/40 py-6">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© 2026 Beyond Tomorrow Summit Hackathon MVP. All rights reserved.</p>
+          <p>© 2026 GreenAgent hackathon MVP. All rights reserved.</p>
           <div className="flex gap-4">
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />

@@ -1,32 +1,30 @@
 "use client";
 
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
-import { Zap, Leaf } from "lucide-react";
+import { Zap, ReceiptText } from "lucide-react";
 
 interface ScoreCardProps {
   title: string;
   score: number;
   description: string;
-  type: "focus" | "carbon";
+  type: "focus" | "hidden-cost";
+  estimates?: Array<{ label: string; value: string }>;
 }
 
-export default function ScoreCard({ title, score, description, type }: ScoreCardProps) {
+export default function ScoreCard({ title, score, description, type, estimates = [] }: ScoreCardProps) {
   const isFocus = type === "focus";
-  const gradient = isFocus ? "from-sky-500 to-indigo-500" : "from-emerald-500 to-teal-500";
-  const textGlow = isFocus ? "text-sky-400" : "text-emerald-400";
-  const Icon = isFocus ? Zap : Leaf;
+  const gradient = isFocus ? "from-sky-400 to-cyan-300" : "from-emerald-400 to-lime-300";
+  const textGlow = isFocus ? "text-sky-300" : "text-emerald-300";
+  const Icon = isFocus ? Zap : ReceiptText;
   const interpretation = score >= 75 ? "Strong" : score >= 50 ? "Moderate" : "Needs attention";
   const direction = isFocus
-    ? "Higher means stronger focus."
-    : "Higher means lower digital impact and better sustainability.";
+    ? "Higher means stronger earning focus."
+    : "Higher means lower estimated hidden cost.";
 
   return (
-    <div className="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl relative overflow-hidden shadow-lg hover:border-slate-700 transition-colors">
-      {/* Background neon glows */}
-      <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-20 ${isFocus ? "bg-sky-500" : "bg-emerald-500"}`} />
-
+    <div className="bg-slate-900/40 border border-slate-800/80 p-6 rounded-xl relative overflow-hidden shadow-lg hover:border-slate-700 transition-colors">
       <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2.5 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-900 border border-slate-700/50 ${textGlow}`}>
+        <div className={`p-2.5 rounded-lg bg-slate-950 border border-slate-700/50 ${textGlow}`}>
           <Icon className="h-5 w-5" />
         </div>
         <h2 className="text-sm font-semibold text-slate-300">{title}</h2>
@@ -55,6 +53,17 @@ export default function ScoreCard({ title, score, description, type }: ScoreCard
       <p className="mt-2 text-xs leading-relaxed text-slate-400">
         {description}
       </p>
+
+      {estimates.length > 0 && (
+        <dl className="mt-4 grid grid-cols-1 gap-2 border-t border-slate-800 pt-4 sm:grid-cols-2">
+          {estimates.map((item) => (
+            <div key={item.label} className="rounded-lg bg-slate-950/50 p-3">
+              <dt className="text-[10px] uppercase tracking-wider text-slate-500">{item.label}</dt>
+              <dd className="mt-1 text-sm font-bold text-slate-100">{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </div>
   );
 }

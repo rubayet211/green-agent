@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GreenAgent - Digital Carbon Footprint Copilot",
-  description: "Get more focused work done while reducing your digital carbon footprint.",
+  title: "GreenAgent - Freelancer Focus and Hidden Cost Copilot",
+  description: "Help freelancers earn more from focused hours while reducing digital waste.",
 };
 
 export default function RootLayout({

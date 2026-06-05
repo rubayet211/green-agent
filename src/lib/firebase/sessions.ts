@@ -69,6 +69,10 @@ async function readLocalSessions(): Promise<GreenAgentSession[]> {
   }
 }
 
+function canReadLocalFallback(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
 async function writeLocalSession(session: GreenAgentSession): Promise<void> {
   localWriteQueue = localWriteQueue.then(async () => {
     const sessions = await readLocalSessions();
@@ -101,7 +105,8 @@ export const sessionStore = {
     if (firestore) {
       try {
         const document = await firestore.collection("sessions").doc(id).get();
-        return document.exists ? parseSession(document.data()) : null;
+        if (document.exists) return parseSession(document.data());
+        if (!canReadLocalFallback()) return null;
       } catch (error) {
         if (!shouldFallbackToLocal(error)) throw error;
       }
@@ -127,10 +132,11 @@ export const sessionStore = {
           .orderBy("createdAt", "desc")
           .limit(limit)
           .get();
-        return snapshot.docs.flatMap((document) => {
+        const parsed = snapshot.docs.flatMap((document) => {
           const session = parseSession(document.data());
           return session ? [session] : [];
         });
+        if (parsed.length > 0 || !canReadLocalFallback()) return parsed;
       } catch (error) {
         if (!shouldFallbackToLocal(error)) throw error;
       }

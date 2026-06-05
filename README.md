@@ -1,144 +1,169 @@
 # GreenAgent
 
-**Get more focused work done while reducing your digital carbon footprint.**
+**Help freelancers and remote workers earn more by optimizing focus while reducing digital waste and carbon impact.**
 
-GreenAgent is a multi-agent productivity copilot built for the Beyond Tomorrow Summit 2026 Hackathon. It analyzes a work session, produces validated focus and sustainability scores, recommends practical actions, and can record a selected action through Hedera Consensus Service.
+GreenAgent is an AI-powered productivity copilot that analyzes digital work habits and delivers personalized recommendations to help freelancers and remote workers increase their effective earning while lowering their digital carbon footprint, with actions logged as verifiable records on Hedera.
 
-## What It Does
+## Why GreenAgent Matters
 
-- Captures tabs, screen hours, tasks, and work mode with reusable quick templates.
-- Runs a sequential four-agent Gemini workflow:
-  1. Context Analyzer
-  2. Carbon Estimator
-  3. Optimizer
-  4. Action Recommender
-- Validates every AI response with Zod and falls back to deterministic local analysis when Gemini is unavailable or invalid.
-- Stores sessions in Firestore in production and a local JSON file in development/test.
-- Submits selected actions to Hedera when configured.
-- Clearly labels unconfigured Hedera activity as simulated and never creates fake transaction IDs.
-- Keeps history private to a signed anonymous browser identity.
+Freelancers do not only lose focus when their digital workspace becomes chaotic - they lose billable earning potential. GreenAgent turns invisible digital waste into understandable scores and practical actions, helping users protect their time, income, and environmental impact.
 
-## Architecture
+## Problem
 
-```txt
-Browser
-  -> signed HttpOnly anonymous identity cookie
-  -> Next.js App Router API routes
-     -> lib/ai: Gemini orchestration + validated fallback
-     -> lib/firebase: validated session persistence + ownership checks
-     -> lib/hedera: HCS submission + receipt/record verification
-```
+Freelancers, remote developers, content creators, remote digital professionals, and emerging-market workers often spend long hours online while juggling many tabs, messages, research trails, and admin tasks. That creates hidden cost: lost income from poor focus, electricity and digital waste, and avoidable carbon impact.
 
-Core stack: Next.js 16 App Router, TypeScript, Tailwind CSS, shadcn/ui, Zod, `@google/genai`, Firebase Admin, and `@hashgraph/sdk`.
+## Solution
 
-## Local Setup
+GreenAgent estimates how much money, focus, and sustainability impact a work session may be losing, then recommends practical actions with estimated time and financial benefit. A selected action can be recorded as a **Sustainable Work Milestone** on Hedera Consensus Service.
 
-Requirements: Node.js 22 and npm.
+## Core Features
+
+- Freelancer-focused session form with presets for Client Project, Proposal Writing, Research, Content Creation, Deep Work, and Admin / Communication.
+- Optional hourly rate, billable percentage, and currency fields: USD, BDT, INR, EUR, GBP.
+- Focus Score showing how efficiently time converts into earning potential.
+- Hidden Cost Score showing how low estimated lost earning, energy waste, and digital carbon impact are.
+- Estimated revenue loss, time lost, electricity cost, and digital waste level.
+- Upgraded recommendation cards with time saved, financial benefit, productivity benefit, sustainability benefit, difficulty, and impact.
+- Hedera Sustainable Work Milestone logging with honest simulation mode when credentials are missing.
+- History and session detail views with lightweight Focus / Hidden Cost trend charts and legacy `carbonScore` compatibility.
+
+## Metric Explanation
+
+**Focus Score** is a 0-100 directional score for earning focus. Higher means the session is better aligned with billable or high-value output.
+
+**Hidden Cost Score** is a 0-100 directional score for hidden digital cost. Higher means lower estimated lost earning, lower digital waste, and lower behavioral carbon / energy impact. It is not an exact financial or scientific carbon calculation.
+
+**Billable percentage** calibrates revenue estimates so GreenAgent does not treat all screen time as paid work. If omitted, fallback scoring uses a conservative 70% billable assumption.
+
+## Multi-Agent Flow
+
+1. Context Analyzer estimates focus risks and potential lost earning minutes.
+2. Carbon & Cost Estimator estimates hidden digital cost, electricity impact, and sustainability risk.
+3. Optimizer creates Focus Score, Hidden Cost Score, and 3-4 recommendations.
+4. Action Recommender selects the best Sustainable Work Milestone.
+
+If Gemini is unavailable or invalid, the deterministic fallback engine produces bounded estimates and recommendations.
+
+## Hedera Usage
+
+GreenAgent logs selected actions as `SUSTAINABLE_WORK_MILESTONE` HCS messages. Live transactions include topic ID, transaction ID, consensus timestamp, network, action title, estimated financial benefit, and Hidden Cost Score. Simulation mode clearly says no live Hedera transaction was created and does not generate fake transaction IDs.
+
+## Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- shadcn/Base UI style components
+- Gemini via `@google/genai` using `gemini-3-flash-preview`
+- Firebase Admin SDK / Firestore
+- Local development persistence fallback
+- Hedera SDK / HCS
+- Zod validation
+- Vitest
+
+## Architecture Overview
+
+- `src/app/api/analyze/route.ts` validates input, runs AI/fallback analysis, saves sessions.
+- `src/lib/ai/*` contains Gemini calls, prompts, orchestration, and fallback scoring.
+- `src/lib/validations/greenagent.ts` owns request, agent, and session schemas.
+- `src/lib/firebase/sessions.ts` stores sessions in Firestore or local fallback storage.
+- `src/app/api/hedera/log-action/route.ts` validates ownership and logs milestones.
+- `src/components/*` renders the dashboard, score cards, recommendations, history, and Hedera confirmation.
+
+## Environment Variables
 
 ```bash
-npm install
-Copy-Item .env.local.example .env.local
-npm run dev
-```
+GEMINI_API_KEY=
 
-Open [http://localhost:3000](http://localhost:3000).
-
-Without third-party credentials, development mode uses deterministic Gemini fallback analysis, local session storage, and explicitly simulated Hedera results. This supports UI evaluation but does not prove live integrations.
-
-## Environment
-
-```env
-# Required in production
-ANONYMOUS_SESSION_SECRET=
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
 
-# Optional; enables live Gemini
-GEMINI_API_KEY=
-
-# Optional; enables live Hedera logging
 HEDERA_ACCOUNT_ID=
 HEDERA_PRIVATE_KEY=
-HEDERA_NETWORK=testnet
 HEDERA_TOPIC_ID=
+HEDERA_NETWORK=testnet
+
+ANONYMOUS_SESSION_SECRET=
 ```
 
-GreenAgent uses `gemini-3-flash-preview`. Gemini and Hedera credentials are server-side only.
-
-Generate an identity secret with:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+Never expose these in client code. Gemini, Firebase Admin, Hedera, and identity signing stay server-side.
 
 ## Firebase Setup
 
-1. Create a Firebase project and service account.
-2. Put the Admin SDK values in `.env.local`.
-3. Create Firestore in Native mode.
-4. Deploy the included history index:
+1. Create a Firebase project.
+2. Enable Firestore in Native mode.
+3. Create a service account.
+4. Set `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
+5. Deploy or apply indexes from `firestore.indexes.json` if Firestore asks for them.
 
-```bash
-npx firebase-tools deploy --only firestore:indexes
-```
+## Gemini Setup
 
-Production deliberately fails session writes when Firebase Admin is not configured. Local JSON persistence exists only in development/test and is not suitable for Vercel.
+1. Create a Gemini API key.
+2. Set `GEMINI_API_KEY`.
+3. Run the app and submit a session.
+4. The UI shows fallback status only if Gemini is unavailable or invalid.
 
 ## Hedera Setup
 
-Configure an operator account and network, then create an HCS topic:
+1. Create or use a Hedera testnet account.
+2. Set `HEDERA_ACCOUNT_ID` and `HEDERA_PRIVATE_KEY`.
+3. Create a topic with `npm run create-topic` or the Hedera portal.
+4. Set `HEDERA_TOPIC_ID` and `HEDERA_NETWORK=testnet`.
+5. Log a milestone and verify the transaction on HashScan before presenting it as live.
+
+## Run Locally
 
 ```bash
-npm run create-topic
+npm install
+npm run dev
 ```
 
-Copy the returned topic ID to `HEDERA_TOPIC_ID`. A successful app submission returns the real topic ID, transaction ID, receipt status, and consensus timestamp. Missing configuration returns a `simulated` status with a reason and no fake ledger identifiers.
+Open `http://localhost:3000`.
 
-## Verification
+## Test Fallback Mode
 
-```bash
-npm run lint
-npm run type-check
-npm test
-npm run build
-npm audit --omit=dev --audit-level=high
-```
+Leave Gemini, Firebase, and Hedera credentials unset in development. GreenAgent will use deterministic AI fallback, local session storage, and simulated Hedera milestone status. This is useful for UI demos but not proof of live integrations.
 
-GitHub Actions runs the same quality gates.
+## Test Live Gemini
 
-## Deploy To Vercel
+Set `GEMINI_API_KEY`, run `npm run dev`, submit a work session, and confirm the fallback notice is not shown.
 
-1. Configure all production-required environment variables in Vercel.
-2. Deploy the Firestore index.
-3. Deploy the app.
-4. Verify a real Gemini analysis, Firestore history entry, and Hedera transaction on HashScan before presenting them as live.
+## Test Live Hedera
 
-Security notes:
+Set Hedera credentials and `HEDERA_TOPIC_ID`, log a recommendation, then open the HashScan link shown in the confirmation panel.
 
-- Anonymous ownership uses a signed HttpOnly cookie. It is not account authentication and does not synchronize across browsers.
-- Rate limiting is in-memory per application instance; use a distributed rate limiter before sustained public traffic.
-- Carbon scoring is an educational behavioral estimate, not a measured emissions calculation.
+## Deploy to Vercel
 
-## Demo Script
+1. Connect the repository to Vercel.
+2. Add all required environment variables in the Vercel project.
+3. Deploy from the main branch.
+4. Run a production smoke test for analysis, Firestore history, and Hedera logging.
 
-1. Choose **Research Mode** or enter 115 tabs, 12 hours, and a research-heavy task list.
-2. Select **Analyze with GreenAgent**.
-3. Explain the validated four-agent sequence and compare Focus and Carbon scores.
-4. Select a recommendation and log it.
-5. If Hedera is configured, open the real HashScan transaction. Otherwise, explicitly show the simulated status.
-6. Open **History** to show the persisted session and action status.
+## Demo Script for Judges
+
+1. Choose the **Client Project** or **Research** preset.
+2. Enter an hourly rate, billable percentage, and submit **Analyze My Work Session**.
+3. Explain Focus Score, Hidden Cost Score, and billable calibration.
+4. Point out estimated revenue loss and potential focus time lost.
+5. Select a recommendation with visible time and financial benefit.
+6. Log it as a Sustainable Work Milestone.
+7. Show either the real Hedera transaction or the clearly labeled simulation state.
 
 ## Known Limitations
 
-- Live Gemini, Firestore, and Hedera behavior requires project-specific credentials and must be verified in the target deployment.
-- A failure in any Gemini agent currently switches the complete analysis to deterministic fallback.
-- Four sequential Gemini calls prioritize agent clarity over minimum latency.
-- Anonymous sessions are browser-bound rather than user accounts.
+- Financial and energy values are directional estimates, not exact calculations.
+- Carbon impact is behavioral and qualitative unless a verified emissions model is added.
+- Gemini calls are sequential for MVP reliability.
+- Local persistence fallback is development-only and blocked in production.
+- Old records with `carbonScore` are displayed defensively but new records use `hiddenCostScore`.
 
-## Roadmap
+## Future Roadmap
 
-- Distributed rate limiting and observability.
-- Partial-agent recovery and streamed progress.
-- Firestore-backed pagination.
-- Optional authenticated cross-device history.
+- Saved hourly rate profiles per freelancer or project.
+- Project-level trend dashboards with action completion tracking.
+- Verified energy and emissions calculation model.
+- Team and agency work-session analytics.
+- More Hedera milestone types and public proof pages.
+- Exportable freelancer productivity reports.

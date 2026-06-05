@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ensureAnonymousIdentity } from "@/lib/utils/anonymous-user";
 import { GreenAgentSession } from "@/types/greenagent";
+import { formatMoneyEstimate } from "@/lib/utils/score";
 import { Card, CardContent } from "@/components/ui/card";
-import { Leaf, Zap, Clock, ShieldCheck, HelpCircle, AlertTriangle, FlaskConical } from "lucide-react";
+import SessionTrendSummary from "@/components/session-trend-summary";
+import { Zap, Clock, ShieldCheck, HelpCircle, AlertTriangle, FlaskConical, ReceiptText, Wallet } from "lucide-react";
 
 async function requestHistory(): Promise<GreenAgentSession[]> {
   await ensureAnonymousIdentity();
@@ -15,6 +17,10 @@ async function requestHistory(): Promise<GreenAgentSession[]> {
     throw new Error(body?.error || "Unable to load session history.");
   }
   return response.json();
+}
+
+function getHiddenCostScore(session: GreenAgentSession): number {
+  return session.hiddenCostScore ?? session.carbonScore ?? 0;
 }
 
 export default function HistoryPage() {
@@ -57,39 +63,86 @@ export default function HistoryPage() {
     ? Math.round(sessions.reduce((acc, s) => acc + s.focusScore, 0) / sessions.length)
     : 0;
 
-  const averageCarbon = sessions.length
-    ? Math.round(sessions.reduce((acc, s) => acc + s.carbonScore, 0) / sessions.length)
+  const averageHiddenCost = sessions.length
+    ? Math.round(sessions.reduce((acc, s) => acc + getHiddenCostScore(s), 0) / sessions.length)
     : 0;
+  const totalRevenueLoss = sessions.reduce((acc, s) => acc + (s.estimatedRevenueLoss ?? 0), 0);
+  const totalRecoveredOpportunity = sessions.reduce(
+    (acc, s) => acc + (s.selectedAction?.estimatedFinancialBenefit ?? 0),
+    0,
+  );
+  const milestoneCount = sessions.filter((s) => s.hedera?.actionType === "SUSTAINABLE_WORK_MILESTONE" || s.hedera?.status === "success" || s.hedera?.status === "simulated").length;
+  const latest = sessions[0];
+  const oldest = sessions[sessions.length - 1];
+  const focusTrend = latest && oldest ? latest.focusScore - oldest.focusScore : 0;
+  const hiddenCostTrend = latest && oldest ? getHiddenCostScore(latest) - getHiddenCostScore(oldest) : 0;
+  const chronologicalSessions = [...sessions].reverse();
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div className="space-y-2">
         <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-100 to-emerald-400">
-          Session History Log
+          Work Session History
         </h1>
         <p className="text-slate-400 text-xs sm:text-sm">
-          Review your focus and digital sustainability score trends.
+          Review focus, hidden-cost trend, and Sustainable Work Milestones over time.
         </p>
       </div>
 
       {/* Summary metric dashboards */}
       {sessions.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-slate-900/30 border border-slate-800/80 p-5 rounded-2xl flex items-center justify-between">
             <div>
               <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Average Focus Score</span>
               <span className="text-2xl font-black text-sky-400">{averageFocus} <span className="text-xs font-normal text-slate-500">/ 100</span></span>
+              <span className="mt-1 block text-[10px] text-slate-500">{focusTrend >= 0 ? "+" : ""}{focusTrend} vs oldest</span>
             </div>
             <Zap className="h-8 w-8 text-sky-400/40 shrink-0" />
           </div>
           <div className="bg-slate-900/30 border border-slate-800/80 p-5 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Average Sustainability Score</span>
-              <span className="text-2xl font-black text-emerald-400">{averageCarbon} <span className="text-xs font-normal text-slate-500">/ 100</span></span>
+              <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Average Hidden Cost Score</span>
+              <span className="text-2xl font-black text-emerald-400">{averageHiddenCost} <span className="text-xs font-normal text-slate-500">/ 100</span></span>
+              <span className="mt-1 block text-[10px] text-slate-500">{hiddenCostTrend >= 0 ? "+" : ""}{hiddenCostTrend} vs oldest</span>
             </div>
-            <Leaf className="h-8 w-8 text-emerald-400/40 shrink-0" />
+            <ReceiptText className="h-8 w-8 text-emerald-400/40 shrink-0" />
+          </div>
+          <div className="bg-slate-900/30 border border-slate-800/80 p-5 rounded-2xl flex items-center justify-between">
+            <div>
+              <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Estimated Revenue Loss</span>
+              <span className="text-2xl font-black text-amber-300">{formatMoneyEstimate(totalRevenueLoss, sessions[0]?.currency ?? "USD")}</span>
+            </div>
+            <Wallet className="h-8 w-8 text-amber-300/40 shrink-0" />
+          </div>
+          <div className="bg-slate-900/30 border border-slate-800/80 p-5 rounded-2xl flex items-center justify-between">
+            <div>
+              <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Milestones Logged</span>
+              <span className="text-2xl font-black text-emerald-300">{milestoneCount}</span>
+              <span className="mt-1 block text-[10px] text-slate-500">
+                {formatMoneyEstimate(totalRecoveredOpportunity, sessions[0]?.currency ?? "USD")} opportunity logged
+              </span>
+            </div>
+            <ShieldCheck className="h-8 w-8 text-emerald-300/40 shrink-0" />
           </div>
         </div>
+      )}
+
+      {sessions.length > 0 && (
+        <SessionTrendSummary
+          series={[
+            {
+              label: "Focus Score",
+              scores: chronologicalSessions.map((session) => session.focusScore),
+              color: "sky",
+            },
+            {
+              label: "Hidden Cost Score",
+              scores: chronologicalSessions.map(getHiddenCostScore),
+              color: "emerald",
+            },
+          ]}
+        />
       )}
 
       {error ? (
@@ -116,11 +169,11 @@ export default function HistoryPage() {
           <HelpCircle className="h-12 w-12 text-slate-500 mx-auto mb-4" />
           <h2 className="font-bold text-slate-300">No sessions recorded yet</h2>
           <p className="text-xs mt-1 max-w-xs mx-auto text-slate-400">
-            Run your first digital habit analysis to monitor focus progress.
+            Run your first freelancer work session analysis to monitor focus and hidden-cost progress.
           </p>
           <Link href="/">
             <span className="inline-block mt-4 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 px-4 py-2 rounded-xl transition-all cursor-pointer">
-              Start Habits Analysis
+              Analyze Work Session
             </span>
           </Link>
         </div>
@@ -153,12 +206,13 @@ export default function HistoryPage() {
                       Tasks: {sess.tasks}
                     </p>
                     <p className="text-xs text-emerald-300/80 line-clamp-1">
-                      Best action: {sess.bestAction.bestActionTitle}
+                      Best milestone: {sess.bestAction.bestActionTitle}
                     </p>
                     <div className="flex gap-4 text-[11px] text-slate-400">
                       <span>Tabs: <strong className="text-slate-300">{sess.tabs}</strong></span>
                       <span>Hours: <strong className="text-slate-300">{sess.hours}h</strong></span>
                       {sess.mode && <span>Mode: <strong className="text-slate-300">{sess.mode}</strong></span>}
+                      <span>Loss: <strong className="text-slate-300">{formatMoneyEstimate(sess.estimatedRevenueLoss ?? 0, sess.currency ?? "USD")}</strong></span>
                     </div>
                   </div>
 
@@ -168,8 +222,8 @@ export default function HistoryPage() {
                       <span className="font-extrabold text-sky-400 font-mono text-base">{sess.focusScore}</span>
                     </div>
                     <div className="text-center">
-                      <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider">Carbon</span>
-                      <span className="font-extrabold text-emerald-400 font-mono text-base">{sess.carbonScore}</span>
+                      <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider">Hidden Cost</span>
+                      <span className="font-extrabold text-emerald-400 font-mono text-base">{getHiddenCostScore(sess)}</span>
                     </div>
                   </div>
                 </CardContent>
