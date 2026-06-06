@@ -61,7 +61,18 @@ export async function POST(request: Request) {
     };
 
     await sessionStore.saveSession(session);
-    return Response.json(session);
+    return Response.json({
+      ...session,
+      input: {
+        tabs: input.tabs,
+        hours: input.hours,
+        tasks: input.tasks,
+        mode: input.mode,
+        hourlyRate: input.hourlyRate,
+        billablePercentage: input.billablePercentage,
+        currency: input.currency,
+      },
+    });
   } catch (error) {
     return apiErrorResponse(error);
   }

@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe("runAnalysis", () => {
-  it("uses the required Gemini model", () => {
+  it("uses the stable primary Gemini model for demo reliability", () => {
     expect(GEMINI_MODEL).toBe("gemini-2.5-flash");
   });
 

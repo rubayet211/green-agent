@@ -55,7 +55,7 @@ GreenAgent logs selected actions as `SUSTAINABLE_WORK_MILESTONE` HCS messages. L
 - TypeScript
 - Tailwind CSS v4
 - shadcn/Base UI style components
-- Gemini via `@google/genai` using `gemini-2.5-flash`
+- Gemini via `@google/genai` using `gemini-2.5-flash` as the primary model for availability and demo reliability.
 - Firebase Admin SDK / Firestore
 - Local development persistence fallback
 - Hedera SDK / HCS
@@ -104,6 +104,8 @@ Never expose these in client code. Gemini, Firebase Admin, Hedera, and identity 
 2. Set `GEMINI_API_KEY`.
 3. Run the app and submit a session.
 4. The UI shows fallback status only if Gemini is unavailable or invalid.
+
+GreenAgent intentionally uses `gemini-2.5-flash` as the main model. The product can be updated to a newer preview model when availability is reliable, but the MVP prioritizes a stable live-demo path with deterministic fallback when any Gemini call fails validation or times out.
 
 ## Hedera Setup
 
