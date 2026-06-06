@@ -9,7 +9,7 @@ interface RecommendationCardProps {
   recommendation: Recommendation;
   isSelected: boolean;
   onSelect: () => void;
-  onLog: () => void;
+  onLog: (actionId: string) => void;
   isLogging: boolean;
   isLogged: boolean;
 }
@@ -104,22 +104,28 @@ export default function RecommendationCard({
           </div>
         </button>
 
-        {isSelected && (
-          <div className="px-6 pb-6">
-            <Button
-              size="sm"
-              onClick={onLog}
-              disabled={isLogging || isLogged}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all shadow-lg"
-            >
-              {isLogging
-                ? "Logging to Hedera..."
-                : isLogged
-                  ? "Action already processed"
-                  : "Log as Sustainable Work Milestone"}
-            </Button>
-          </div>
-        )}
+        <div className="px-6 pb-6">
+          <Button
+            size="sm"
+            onClick={() => {
+              onSelect();
+              onLog(recommendation.id);
+            }}
+            disabled={isLogging || isLogged}
+            variant={isSelected ? "default" : "outline"}
+            className={
+              isSelected
+                ? "w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all shadow-lg"
+                : "w-full border-emerald-500/40 bg-slate-950/40 text-emerald-300 hover:bg-emerald-500/10 font-bold transition-all"
+            }
+          >
+            {isLogging
+              ? "Logging to Hedera..."
+              : isLogged
+                ? "Action already processed"
+                : "Log as Sustainable Work Milestone"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -227,12 +227,7 @@ export const GreenAgentSessionSchema = RawGreenAgentSessionSchema.transform((ses
         hiddenCostScore,
       },
     },
-    hedera: session.hedera
-      ? {
-          ...session.hedera,
-          actionType: session.hedera.actionType ?? "SUSTAINABLE_WORK_MILESTONE",
-        }
-      : undefined,
+    hedera: session.hedera,
   };
 });
 

@@ -55,7 +55,7 @@ GreenAgent logs selected actions as `SUSTAINABLE_WORK_MILESTONE` HCS messages. L
 - TypeScript
 - Tailwind CSS v4
 - shadcn/Base UI style components
-- Gemini via `@google/genai` using `gemini-3-flash-preview`
+- Gemini via `@google/genai` using `gemini-2.5-flash`
 - Firebase Admin SDK / Firestore
 - Local development persistence fallback
 - Hedera SDK / HCS

@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe("runAnalysis", () => {
   it("uses the required Gemini model", () => {
-    expect(GEMINI_MODEL).toBe("gemini-3-flash-preview");
+    expect(GEMINI_MODEL).toBe("gemini-2.5-flash");
   });
 
   it("returns deterministic fallback output when AI is disabled", async () => {

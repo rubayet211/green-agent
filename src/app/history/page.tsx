@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ensureAnonymousIdentity } from "@/lib/utils/anonymous-user";
 import { GreenAgentSession } from "@/types/greenagent";
 import { formatMoneyEstimate } from "@/lib/utils/score";
+import { countSustainableWorkMilestones, isSustainableWorkMilestone } from "@/lib/utils/milestones";
 import { Card, CardContent } from "@/components/ui/card";
 import SessionTrendSummary from "@/components/session-trend-summary";
 import { Zap, Clock, ShieldCheck, HelpCircle, AlertTriangle, FlaskConical, ReceiptText, Wallet } from "lucide-react";
@@ -71,7 +72,7 @@ export default function HistoryPage() {
     (acc, s) => acc + (s.selectedAction?.estimatedFinancialBenefit ?? 0),
     0,
   );
-  const milestoneCount = sessions.filter((s) => s.hedera?.actionType === "SUSTAINABLE_WORK_MILESTONE" || s.hedera?.status === "success" || s.hedera?.status === "simulated").length;
+  const milestoneCount = countSustainableWorkMilestones(sessions);
   const latest = sessions[0];
   const oldest = sessions[sessions.length - 1];
   const focusTrend = latest && oldest ? latest.focusScore - oldest.focusScore : 0;
@@ -189,13 +190,13 @@ export default function HistoryPage() {
                       <span className="text-xs font-semibold text-slate-400">
                         {new Date(sess.timestamp).toLocaleDateString()} at {new Date(sess.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      {sess.hedera?.status === "success" && (
+                      {isSustainableWorkMilestone(sess) && sess.hedera?.status === "success" && (
                         <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-500/20">
                           <ShieldCheck className="h-3 w-3" />
                           Hedera confirmed
                         </span>
                       )}
-                      {sess.hedera?.status === "simulated" && (
+                      {isSustainableWorkMilestone(sess) && sess.hedera?.status === "simulated" && (
                         <span className="inline-flex items-center gap-1 text-[10px] bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded-full font-bold uppercase border border-sky-500/20">
                           <FlaskConical className="h-3 w-3" />
                           Simulated

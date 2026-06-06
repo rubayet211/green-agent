@@ -51,8 +51,9 @@ export default function SessionDetailsPage({ params }: PageProps) {
     getSessionData();
   }, [resolvedParams.id]);
 
-  const handleLogAction = async () => {
-    if (!session || !selectedActionId) return;
+  const handleLogAction = async (actionId = selectedActionId) => {
+    if (!session || !actionId) return;
+    setSelectedActionId(actionId);
     setIsLogging(true);
     setError("");
     try {
@@ -60,7 +61,7 @@ export default function SessionDetailsPage({ params }: PageProps) {
       const res = await fetch("/api/hedera/log-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: session.id, actionId: selectedActionId })
+        body: JSON.stringify({ sessionId: session.id, actionId })
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
