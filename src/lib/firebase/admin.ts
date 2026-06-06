@@ -15,6 +15,7 @@ export function getAdminFirestore() {
             privateKey: privateKey.replace(/\\n/g, "\n"),
           }),
         });
+        admin.firestore().settings({ ignoreUndefinedProperties: true });
       } catch (e) {
         console.error("Firebase admin initialization failed:", e);
         return null;
@@ -25,3 +26,4 @@ export function getAdminFirestore() {
   }
   return admin.firestore();
 }
+
